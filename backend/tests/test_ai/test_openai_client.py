@@ -1,10 +1,15 @@
-import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.app.ai.openai_client import FreightPulseAIClient, AITimeoutError, AIValidationError
-from backend.app.schemas.ai_outputs import RateOutlookOutput
+
 import openai
-from pydantic import ValidationError
+import pytest
+
+from backend.app.ai.openai_client import (
+    AITimeoutError,
+    FreightPulseAIClient,
+)
+from backend.app.schemas.ai_outputs import RateOutlookOutput
+
 
 @pytest.fixture
 def mock_openai():
@@ -102,7 +107,7 @@ async def test_generate_structured_validation_error_retry(ai_client):
         mock_valid_response
     ])
 
-    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+    with patch("asyncio.sleep", new_callable=AsyncMock):
         result = await ai_client.generate_structured(
             system_prompt="System",
             user_content="User",

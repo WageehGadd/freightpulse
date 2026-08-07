@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -35,7 +36,8 @@ class CarrierSummarizer:
         try:
             lang = self.translator.detect_language(advisory_text)
             if lang == "ar":
-                processed_text = self.translator.translate(advisory_text)
+                # translate runs a PyTorch model and is blocking, so run in a thread
+                processed_text = await asyncio.to_thread(self.translator.translate, advisory_text)
                 is_translated = True
         except Exception as e:  # noqa: BLE001
             logger.warning("Translation failed, falling back to original text: %s", e)

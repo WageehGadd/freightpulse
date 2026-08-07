@@ -1,10 +1,11 @@
+import asyncio
 import json
 import logging
-import asyncio
-from typing import TypeVar, Type, Any, Optional
-from pydantic import BaseModel, ValidationError
-from openai import AsyncOpenAI
+from typing import Any, TypeVar
+
 import openai
+from openai import AsyncOpenAI
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class AIValidationError(Exception):
     pass
 
 class FreightPulseAIClient:
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         # AsyncOpenAI will automatically fall back to os.environ.get("OPENAI_API_KEY")
         self.client = AsyncOpenAI(api_key=api_key)
         self.cost_per_1m_input_tokens = 0.15
@@ -44,7 +45,7 @@ class FreightPulseAIClient:
         self,
         system_prompt: str,
         user_content: str,
-        output_schema: Type[T],
+        output_schema: type[T],
         feature_name: str,
         model: str = "gpt-4o-mini",
         temperature: float = 0.3,
@@ -81,10 +82,10 @@ class FreightPulseAIClient:
                     raise AITimeoutError(f"OpenAI API timed out after {retries} retries.") from e
                 await asyncio.sleep(2 ** attempt)
                 
-            except (openai.APIError, openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError) as e:
+            except (openai.APIError, openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError):
                 attempt += 1
                 if attempt > retries:
-                    raise e
+                    raise
                 await asyncio.sleep(2 ** attempt)
                 
             except (ValidationError, json.JSONDecodeError) as e:

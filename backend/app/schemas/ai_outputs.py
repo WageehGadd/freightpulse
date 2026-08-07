@@ -1,12 +1,14 @@
-from pydantic import BaseModel, Field
-from typing import Literal, List, Optional
 from datetime import date
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
 
 class CarrierSummaryOutput(BaseModel):
     summary: str = Field(..., min_length=10, max_length=500)
     advisory_type: Literal["surcharge", "route_suspension", "schedule_change", "congestion"]
-    affected_lanes: List[str]
-    effective_date: Optional[date] = None
+    affected_lanes: list[str]
+    effective_date: date | None = None
     impact_severity: Literal["low", "medium", "high"]
 
 class RouteBriefOutput(BaseModel):
