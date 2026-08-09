@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import date
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +10,7 @@ class CarrierSummaryOutput(BaseModel):
     summary: str = Field(..., min_length=10, max_length=500)
     advisory_type: Literal["surcharge", "route_suspension", "schedule_change", "congestion"]
     affected_lanes: list[str]
-    effective_date: date | None = None
+    effective_date: Optional[date] = None  # noqa: UP045
     impact_severity: Literal["low", "medium", "high"]
 
 class RouteBriefOutput(BaseModel):

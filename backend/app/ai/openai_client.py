@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
-from typing import Any, TypeVar
+from typing import Any, Optional, TypeVar
 
 import openai
 from openai import AsyncOpenAI
@@ -18,7 +20,7 @@ class AIValidationError(Exception):
     pass
 
 class FreightPulseAIClient:
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: Optional[str] = None):  # noqa: UP045
         # AsyncOpenAI will automatically fall back to os.environ.get("OPENAI_API_KEY")
         self.client = AsyncOpenAI(api_key=api_key)
         self.cost_per_1m_input_tokens = 0.15
