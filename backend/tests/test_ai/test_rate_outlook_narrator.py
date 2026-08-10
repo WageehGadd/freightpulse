@@ -130,3 +130,11 @@ async def test_narrate_does_not_log_raw_input(mock_logger, narrator, mock_ai_cli
         assert sensitive_historical_data not in str(arg)
         assert sensitive_market_data not in str(arg)
 
+
+@pytest.mark.asyncio
+async def test_narrate_unexpected_exception_propagates(narrator, mock_ai_client):
+    mock_ai_client.generate_structured.side_effect = RuntimeError("Narrator broken")
+    
+    with pytest.raises(RuntimeError, match="Narrator broken"):
+        await narrator.narrate("US-EU", "$1000", "None", "None")
+

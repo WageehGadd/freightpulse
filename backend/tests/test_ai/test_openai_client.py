@@ -137,3 +137,39 @@ async def test_generate_structured_max_retries_exceeded(ai_client):
             )
             
         assert ai_client.client.chat.completions.create.call_count == 3 # Initial + 2 retries
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_json_decode_error_retry(ai_client):
+    mock_invalid_response = MagicMock()
+    mock_invalid_response.choices = [
+        MagicMock(message=MagicMock(content="Not a JSON string"))
+    ]
+    mock_invalid_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+    
+    mock_valid_response = MagicMock()
+    mock_valid_response.choices = [
+        MagicMock(message=MagicMock(content=json.dumps({
+            "outlook_text": "This is a valid test outlook that exceeds the minimum length requirement.",
+            "recommendation": "book_now",
+            "confidence": 95
+        })))
+    ]
+    mock_valid_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+    
+    ai_client.client.chat.completions.create = AsyncMock(side_effect=[
+        mock_invalid_response,
+        mock_valid_response
+    ])
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        result = await ai_client.generate_structured(
+            system_prompt="System",
+            user_content="User",
+            output_schema=RateOutlookOutput,
+            feature_name="test_feature"
+        )
+        
+        assert isinstance(result, RateOutlookOutput)
+        assert ai_client.client.chat.completions.create.call_count == 2
+

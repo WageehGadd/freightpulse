@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -129,3 +129,38 @@ async def test_summarize_timeout_propagates(summarizer, mock_ai_client, mock_tra
     
     with pytest.raises(AITimeoutError, match="Timeout reached"):
         await summarizer.summarize("Carrier F", "Title", "Text")
+
+
+@pytest.mark.asyncio
+@patch("backend.app.ai.carrier_summarizer.logger")
+async def test_summarize_does_not_log_raw_input(mock_logger, summarizer, mock_ai_client, mock_translator):
+    mock_translator.detect_language.return_value = "en"
+    mock_output = CarrierSummaryOutput(
+        summary="Test summary",
+        advisory_type="surcharge",
+        affected_lanes=["US-EU"],
+        impact_severity="low"
+    )
+    mock_ai_client.generate_structured.return_value = mock_output
+    
+    sensitive_advisory = "Super secret advisory text about hidden ports"
+
+    await summarizer.summarize("Carrier G", "Title", sensitive_advisory)
+
+    mock_logger.info.assert_called_once()
+    log_args = mock_logger.info.call_args.args
+    log_msg = log_args[0]
+    
+    assert sensitive_advisory not in log_msg
+    for arg in log_args[1:]:
+        assert sensitive_advisory not in str(arg)
+
+
+@pytest.mark.asyncio
+async def test_summarize_unexpected_exception_propagates(summarizer, mock_ai_client, mock_translator):
+    mock_translator.detect_language.return_value = "en"
+    mock_ai_client.generate_structured.side_effect = RuntimeError("Something completely broken")
+    
+    with pytest.raises(RuntimeError, match="Something completely broken"):
+        await summarizer.summarize("Carrier H", "Title", "Text")
+
