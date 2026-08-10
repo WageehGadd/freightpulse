@@ -1,9 +1,46 @@
-node_modules/
+# Python
 __pycache__/
-*.pyc
-.env
-.venv/
+*.py[cod]
+*$py.class
+*.so
+.Python
 venv/
-dist/
-.next/
-*.pdf
+env/
+ENV/
+*.egg-info/
+
+# Environment variables
+.env
+.env.test
+.env.*
+!.env.example
+
+# Alembic (لو عايز تتجاهل ملفات مؤقتة، مش الـ versions نفسها)
+# alembic/versions/*.pyc
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker (اختياري - عادةً مبتتجاهلش docker-compose.yml نفسه، بس أي override محلي)
+docker-compose.override.yml
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Playwright
+.playwright/
