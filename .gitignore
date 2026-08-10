@@ -7,3 +7,4 @@ venv/
 dist/
 .next/
 *.pdf
+.env.test
