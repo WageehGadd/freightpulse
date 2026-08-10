@@ -1,16 +1,18 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_db
 from app.models import FreightRate, RateTrend
 from app.schemas.rate import (
-    RatesAllResponse,
     LaneAllResponse,
     LaneDetailResponse,
-    RateHistoryPoint,
-    TrendInfo,
     RateCompareResponse,
+    RateHistoryPoint,
+    RatesAllResponse,
+    TrendInfo,
 )
 
 router = APIRouter()
@@ -81,7 +83,7 @@ async def compare_rate(
         raise HTTPException(status_code=404, detail=f"No rate data found for lane '{trade_lane}'")
 
     async def avg_over_days(days: int) -> float | None:
-        cutoff = date.today() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc).date() - timedelta(days=days)
         stmt = select(func.avg(FreightRate.rate_usd)).where(
             FreightRate.trade_lane == trade_lane,
             FreightRate.container_type == container_type,
@@ -117,7 +119,7 @@ async def get_lane_rate(
     container_type: str = Query(default="40ft", pattern="^(20ft|40ft)$"),
     db: AsyncSession = Depends(get_db),
 ):
-    cutoff_date = date.today() - timedelta(days=30)
+    cutoff_date = datetime.now(timezone.utc).date() - timedelta(days=30)
 
     history_stmt = (
         select(FreightRate)

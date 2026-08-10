@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import redis.asyncio as aioredis
-from app.database import get_db
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
-from app.models import FreightRate, PortCongestion, CarrierAdvisory
+from app.database import get_db
+from app.models import CarrierAdvisory, FreightRate, PortCongestion
 
 router = APIRouter()
 

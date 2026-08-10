@@ -1,4 +1,5 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+
 from app.database import AsyncSessionLocal
 from app.models import CarrierAdvisory
 
@@ -15,7 +16,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["Egypt-Europe", "UAE-Europe"],
         "effective_date": date(2026, 9, 1),
         "source_url": "https://www.cma-cgm.com/news/5555/advisory-13-middle-east-dangerous-goods-surcharge-implementation",
-        "published_at": datetime.utcnow() - timedelta(days=3),
+        "published_at": datetime.now(timezone.utc) - timedelta(days=3),
     },
     {
         "carrier": "CMA CGM",
@@ -25,7 +26,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["Egypt-China", "UAE-Asia"],
         "effective_date": date(2026, 8, 15),
         "source_url": "https://www.cma-cgm.com/news/5551/fak-rates-from-asia-to-the-mediterranean-amp-north-africa",
-        "published_at": datetime.utcnow() - timedelta(days=4),
+        "published_at": datetime.now(timezone.utc) - timedelta(days=4),
     },
     {
         "carrier": "Maersk",
@@ -35,7 +36,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["Egypt-Europe", "UAE-Europe"],
         "effective_date": date(2026, 8, 20),
         "source_url": "https://www.maersk.com/news/articles/red-sea-routing-update",
-        "published_at": datetime.utcnow() - timedelta(days=1),
+        "published_at": datetime.now(timezone.utc) - timedelta(days=1),
     },
     {
         "carrier": "Maersk",
@@ -45,7 +46,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["Egypt-Europe"],
         "effective_date": date(2026, 8, 18),
         "source_url": "https://www.maersk.com/news/articles/east-west-network-update",
-        "published_at": datetime.utcnow() - timedelta(hours=18),
+        "published_at": datetime.now(timezone.utc) - timedelta(hours=18),
     },
     {
         "carrier": "MSC",
@@ -55,7 +56,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["UAE-Asia", "Egypt-China"],
         "effective_date": date(2026, 8, 25),
         "source_url": "https://www.msc.com/en/newsroom/customer-advisories/schedule-update-shanghai",
-        "published_at": datetime.utcnow() - timedelta(hours=6),
+        "published_at": datetime.now(timezone.utc) - timedelta(hours=6),
     },
     {
         "carrier": "MSC",
@@ -65,7 +66,7 @@ SAMPLE_ADVISORIES = [
         "affected_lanes": ["UAE-Asia", "UAE-Europe"],
         "effective_date": date(2026, 8, 12),
         "source_url": "https://www.msc.com/en/newsroom/customer-advisories/jebel-ali-congestion",
-        "published_at": datetime.utcnow() - timedelta(hours=2),
+        "published_at": datetime.now(timezone.utc) - timedelta(hours=2),
     },
 ]
 

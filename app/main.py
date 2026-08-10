@@ -1,11 +1,10 @@
+import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 from app.middlewares.api_key import ApiKeyMiddleware
-from app.routers import dashboard, rates, ports, carriers, health
-import structlog
-from app.routers import dashboard, rates, ports, carriers, health, exchange_rate
-from app.routers import bunker
+from app.routers import bunker, carriers, dashboard, exchange_rate, health, ports, rates
 
 logger = structlog.get_logger()
 

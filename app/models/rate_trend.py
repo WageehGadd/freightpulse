@@ -1,8 +1,10 @@
 import uuid
 from datetime import date
-from sqlalchemy import String, Numeric, Float, Boolean, Date, UniqueConstraint
+
+from sqlalchemy import Boolean, Date, Float, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
 
 

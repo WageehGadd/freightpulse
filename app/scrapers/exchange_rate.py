@@ -1,8 +1,9 @@
 import httpx
-from app.scrapers.base import BaseScraper
-from app.redis_client import get_redis
-from app.config import settings
 import structlog
+
+from app.config import settings
+from app.redis_client import get_redis
+from app.scrapers.base import BaseScraper
 
 logger = structlog.get_logger()
 

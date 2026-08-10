@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-
 logger = structlog.get_logger()
 
 

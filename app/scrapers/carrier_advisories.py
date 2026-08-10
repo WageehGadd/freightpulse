@@ -1,7 +1,8 @@
-import feedparser
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
+import feedparser
+import structlog
 from playwright.async_api import async_playwright
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -9,9 +10,6 @@ from sqlalchemy.dialects.postgresql import insert
 from app.database import AsyncSessionLocal
 from app.models import CarrierAdvisory
 from app.scrapers.base import BaseScraper
-
-import structlog
-
 
 logger = structlog.get_logger()
 
@@ -138,9 +136,11 @@ class CarrierAdvisoryScraper(BaseScraper):
                         carrier=carrier_name,
                         advisory_type=advisory_type,
                         title=entry.title,
-                        summary=getattr(entry, "description", None),
+                        raw_text=getattr(entry, "description", ""),
+                        summary=None,
                         affected_lanes=None,
                         effective_date=None,
+                        impact_severity=None,
                         source_url=entry.link,
                         published_at=published_at,
                     )

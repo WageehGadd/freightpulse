@@ -1,11 +1,9 @@
 import httpx
+import structlog
 from bs4 import BeautifulSoup
 
-from app.scrapers.base import BaseScraper
 from app.redis_client import get_redis
-
-import structlog
-
+from app.scrapers.base import BaseScraper
 
 logger = structlog.get_logger()
 

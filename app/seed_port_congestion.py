@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+
 from app.database import AsyncSessionLocal
 from app.models import PortCongestion
 
@@ -25,7 +26,7 @@ SAMPLE_CONGESTION = [
 async def seed_port_congestion_realistic():
     async with AsyncSessionLocal() as session:
         for port in SAMPLE_CONGESTION:
-            session.add(PortCongestion(**port, measured_at=datetime.utcnow()))
+            session.add(PortCongestion(**port, measured_at=datetime.now(timezone.utc)))
         await session.commit()
     print(f"Seeded {len(SAMPLE_CONGESTION)} realistic port congestion entries (mock data)")
 

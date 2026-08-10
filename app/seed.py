@@ -1,16 +1,15 @@
 
 import asyncio
 import random
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.database import AsyncSessionLocal
 from app.models import (
-    FreightRate,
-    RateTrend,
-    PortCongestion,
     CarrierAdvisory,
+    FreightRate,
+    PortCongestion,
+    RateTrend,
 )
-
 
 TRADE_LANES = [
     ("Egypt-China", "Port Said", "China"),
@@ -32,7 +31,7 @@ PORTS = [
 
 async def seed_freight_rates(session):
     """Generate 30 days of realistic sample rate data for each trade lane."""
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     for lane, origin, dest_region in TRADE_LANES:
         base_rate = random.uniform(1800, 3200)
@@ -84,7 +83,7 @@ async def seed_rate_trends(session):
     Generate one precomputed trend row for each trade lane.
     This is sample data and is not calculated from actual rate history.
     """
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     trends = ["rising", "stable", "falling"]
 
     for lane, _, _ in TRADE_LANES:
@@ -149,7 +148,7 @@ async def seed_port_congestion(session):
                     f"{severity} congestion levels."
                 ),
                 severity=severity,
-                measured_at=datetime.utcnow(),
+                measured_at=datetime.now(timezone.utc),
                 source="Port Authority Reports",
             )
         )
@@ -197,9 +196,9 @@ async def seed_carrier_advisories(session):
                 title=title,
                 summary=summary,
                 affected_lanes=lanes,
-                effective_date=date.today() + timedelta(days=7),
+                effective_date=datetime.now(timezone.utc).date() + timedelta(days=7),
                 published_at=(
-                    datetime.utcnow()
+                    datetime.now(timezone.utc)
                     - timedelta(days=random.randint(0, 3))
                 ),
                 source_url=(
