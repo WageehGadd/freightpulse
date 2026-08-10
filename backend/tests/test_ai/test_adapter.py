@@ -1,26 +1,38 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.ai.adapter import (
     AdvisoryEmptyError,
     AdvisoryNotFoundError,
+    AdvisoryRepository,
     CarrierSummarizerAdapter,
 )
 from backend.app.ai.carrier_summarizer import CarrierSummarizer
 from backend.app.ai.openai_client import AITimeoutError, AIValidationError
-from backend.app.db.models import CarrierAdvisory
 from backend.app.schemas.ai_outputs import CarrierSummaryOutput
 
 
+class MockAdvisoryRecord:
+    def __init__(self, id, carrier, title, raw_text):
+        self.id = id
+        self.carrier = carrier
+        self.title = title
+        self.raw_text = raw_text
+        self.summary = None
+        self.advisory_type = None
+        self.affected_lanes = None
+        self.effective_date = None
+        self.impact_severity = None
+
+
 @pytest.fixture
-def mock_db_session():
-    session = MagicMock(spec=AsyncSession)
-    session.execute = AsyncMock()
-    session.commit = AsyncMock()
-    session.rollback = AsyncMock()
-    return session
+def mock_repository():
+    repo = MagicMock(spec=AdvisoryRepository)
+    repo.get_by_id = AsyncMock()
+    repo.commit = AsyncMock()
+    repo.rollback = AsyncMock()
+    return repo
 
 
 @pytest.fixture
@@ -31,26 +43,22 @@ def mock_summarizer():
 
 
 @pytest.fixture
-def adapter(mock_db_session, mock_summarizer):
-    return CarrierSummarizerAdapter(db_session=mock_db_session, summarizer=mock_summarizer)
+def adapter(mock_repository, mock_summarizer):
+    return CarrierSummarizerAdapter(repository=mock_repository, summarizer=mock_summarizer)
 
 
 @pytest.mark.asyncio
-async def test_summarize_and_save_success(adapter, mock_db_session, mock_summarizer):
+async def test_summarize_and_save_success(adapter, mock_repository, mock_summarizer):
     advisory_id = 1
-    mock_advisory = CarrierAdvisory(
+    mock_advisory = MockAdvisoryRecord(
         id=advisory_id,
         carrier="CarrierA",
         title="Title A",
         raw_text="Some valid raw text"
     )
     
-    # Mock DB read
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
-    # Mock AI response
     mock_output = CarrierSummaryOutput(
         summary="Test summary over ten chars",
         advisory_type="surcharge",
@@ -67,7 +75,7 @@ async def test_summarize_and_save_success(adapter, mock_db_session, mock_summari
         title="Title A",
         advisory_text="Some valid raw text",
     )
-    mock_db_session.commit.assert_called_once()
+    mock_repository.commit.assert_called_once()
     assert mock_advisory.summary == "Test summary over ten chars"
     assert mock_advisory.advisory_type == "surcharge"
     assert mock_advisory.affected_lanes == ["LANE1"]
@@ -75,111 +83,99 @@ async def test_summarize_and_save_success(adapter, mock_db_session, mock_summari
 
 
 @pytest.mark.asyncio
-async def test_summarize_not_found(adapter, mock_db_session, mock_summarizer):
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = None
-    mock_db_session.execute.return_value = mock_result
+async def test_summarize_not_found(adapter, mock_repository, mock_summarizer):
+    mock_repository.get_by_id.return_value = None
     
     with pytest.raises(AdvisoryNotFoundError, match="not found"):
         await adapter.summarize_and_save(99)
         
     mock_summarizer.summarize.assert_not_called()
-    mock_db_session.commit.assert_not_called()
+    mock_repository.commit.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_summarize_empty_text(adapter, mock_db_session, mock_summarizer):
-    mock_advisory = CarrierAdvisory(
+async def test_summarize_empty_text(adapter, mock_repository, mock_summarizer):
+    mock_advisory = MockAdvisoryRecord(
         id=2,
         carrier="CarrierB",
         title="Title B",
         raw_text="   "
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     with pytest.raises(AdvisoryEmptyError, match="empty raw text"):
         await adapter.summarize_and_save(2)
         
     mock_summarizer.summarize.assert_not_called()
-    mock_db_session.commit.assert_not_called()
+    mock_repository.commit.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_summarize_ai_timeout(adapter, mock_db_session, mock_summarizer):
-    mock_advisory = CarrierAdvisory(
+async def test_summarize_ai_timeout(adapter, mock_repository, mock_summarizer):
+    mock_advisory = MockAdvisoryRecord(
         id=3,
         carrier="CarrierC",
         title="Title C",
         raw_text="Valid text"
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     mock_summarizer.summarize.side_effect = AITimeoutError("Timeout")
     
     with pytest.raises(AITimeoutError):
         await adapter.summarize_and_save(3)
         
-    mock_db_session.commit.assert_not_called()
-    mock_db_session.rollback.assert_called_once()
+    mock_repository.commit.assert_not_called()
+    mock_repository.rollback.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_summarize_ai_validation_failure(adapter, mock_db_session, mock_summarizer):
-    mock_advisory = CarrierAdvisory(
+async def test_summarize_ai_validation_failure(adapter, mock_repository, mock_summarizer):
+    mock_advisory = MockAdvisoryRecord(
         id=4,
         carrier="CarrierD",
         title="Title D",
         raw_text="Valid text"
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     mock_summarizer.summarize.side_effect = AIValidationError("Validation error")
     
     with pytest.raises(AIValidationError):
         await adapter.summarize_and_save(4)
         
-    mock_db_session.commit.assert_not_called()
-    mock_db_session.rollback.assert_called_once()
+    mock_repository.commit.assert_not_called()
+    mock_repository.rollback.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_summarize_unexpected_exception(adapter, mock_db_session, mock_summarizer):
-    mock_advisory = CarrierAdvisory(
+async def test_summarize_unexpected_exception(adapter, mock_repository, mock_summarizer):
+    mock_advisory = MockAdvisoryRecord(
         id=5,
         carrier="CarrierE",
         title="Title E",
         raw_text="Valid text"
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     mock_summarizer.summarize.side_effect = RuntimeError("Broken logic")
     
     with pytest.raises(RuntimeError):
         await adapter.summarize_and_save(5)
         
-    mock_db_session.commit.assert_not_called()
-    mock_db_session.rollback.assert_called_once()
+    mock_repository.commit.assert_not_called()
+    mock_repository.rollback.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_summarize_db_commit_failure(adapter, mock_db_session, mock_summarizer):
-    mock_advisory = CarrierAdvisory(
+async def test_summarize_db_commit_failure(adapter, mock_repository, mock_summarizer):
+    mock_advisory = MockAdvisoryRecord(
         id=6,
         carrier="CarrierF",
         title="Title F",
         raw_text="Valid text"
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     mock_output = CarrierSummaryOutput(
         summary="Test summary over ten chars",
@@ -189,27 +185,25 @@ async def test_summarize_db_commit_failure(adapter, mock_db_session, mock_summar
     )
     mock_summarizer.summarize.return_value = mock_output
     
-    mock_db_session.commit.side_effect = Exception("DB disconnected")
+    mock_repository.commit.side_effect = Exception("DB disconnected")
     
     with pytest.raises(Exception, match="DB disconnected"):
         await adapter.summarize_and_save(6)
         
-    mock_db_session.rollback.assert_called_once()
+    mock_repository.rollback.assert_called_once()
 
 
 @pytest.mark.asyncio
 @patch("backend.app.ai.adapter.logger")
-async def test_summarize_logging_safety(mock_logger, adapter, mock_db_session, mock_summarizer):
+async def test_summarize_logging_safety(mock_logger, adapter, mock_repository, mock_summarizer):
     sensitive_text = "Super secret advisory text for VIP"
-    mock_advisory = CarrierAdvisory(
+    mock_advisory = MockAdvisoryRecord(
         id=7,
         carrier="CarrierG",
         title="Title G",
         raw_text=sensitive_text
     )
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_advisory
-    mock_db_session.execute.return_value = mock_result
+    mock_repository.get_by_id.return_value = mock_advisory
     
     mock_summarizer.summarize.side_effect = RuntimeError("Broken logic")
     
