@@ -1,0 +1,46 @@
+{
+  "Shanghai-Europe": {
+    "trade_lane": "Shanghai-Europe",
+    "container_type": "40ft",
+    "current_rate_usd": 2450,
+    "avg_7d": 2410,
+    "avg_30d": 2290,
+    "avg_90d": 2150,
+    "vs_7d_pct": 1.66,
+    "vs_30d_pct": 6.99,
+    "vs_90d_pct": 13.95
+  },
+  "Shanghai-Jeddah": {
+    "trade_lane": "Shanghai-Jeddah",
+    "container_type": "40ft",
+    "current_rate_usd": 2890,
+    "avg_7d": 2810,
+    "avg_30d": 2650,
+    "avg_90d": 2400,
+    "vs_7d_pct": 2.85,
+    "vs_30d_pct": 9.06,
+    "vs_90d_pct": 20.42
+  },
+  "Singapore-Dubai": {
+    "trade_lane": "Singapore-Dubai",
+    "container_type": "40ft",
+    "current_rate_usd": 1980,
+    "avg_7d": 2000,
+    "avg_30d": 2070,
+    "avg_90d": 2180,
+    "vs_7d_pct": -1.0,
+    "vs_30d_pct": -4.35,
+    "vs_90d_pct": -9.17
+  },
+  "default": {
+    "trade_lane": "Trade Lane",
+    "container_type": "40ft",
+    "current_rate_usd": 2300,
+    "avg_7d": 2280,
+    "avg_30d": 2250,
+    "avg_90d": 2200,
+    "vs_7d_pct": 0.88,
+    "vs_30d_pct": 2.22,
+    "vs_90d_pct": 4.55
+  }
+}
