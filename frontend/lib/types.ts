@@ -41,7 +41,13 @@ export interface RateCompareData {
 export interface RatesAllResponse {
   lanes: LaneSummary[];
 }
-export type PortCongestionLevel = "low" | "medium" | "high" | "critical" | "elevated" | "normal";
+export type PortCongestionLevel =
+  | "low"
+  | "medium"
+  | "high"
+  | "critical"
+  | "elevated"
+  | "normal";
 
 export interface Port {
   id: string;
@@ -54,4 +60,24 @@ export interface Port {
   congestion_pct: number;
   vessels_waiting: number;
   avg_dwell_days?: number;
+}
+export type AdvisoryType =
+  | "surcharge"
+  | "route_suspension"
+  | "schedule_change"
+  | "congestion";
+
+export type AdvisorySeverity = "low" | "medium" | "high";
+
+export interface CarrierAdvisory {
+  id: string;
+  carrier: string;
+  advisory_type: AdvisoryType;
+  title: string;
+  summary: string;
+  affected_lanes: string[];
+  effective_date: string | null;
+  source_url: string;
+  impact_severity: AdvisorySeverity;
+  published_at: string;
 }

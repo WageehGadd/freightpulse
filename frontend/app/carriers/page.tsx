@@ -1,5 +1,8 @@
-import React from "react";
+import { getCarrierAdvisories } from "@/lib/api";
+import CarriersClient from "@/components/carriers/CarriersClient";
 
-export default function Carriers() {
-  return <div>carriers</div>;
+export default async function CarriersPage() {
+  const advisories = await getCarrierAdvisories();
+
+  return <CarriersClient initialAdvisories={advisories} />;
 }

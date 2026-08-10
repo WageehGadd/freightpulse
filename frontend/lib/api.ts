@@ -4,6 +4,8 @@ import ratesAllMock from "@/mocks/rates-all.json";
 import ratesLaneMock from "@/mocks/rates-lane.json";
 import ratesCompareMock from "@/mocks/rates-compare.json";
 import { ports } from "./mock/ports";
+import carriersAdvisoriesMock from "@/mocks/carriers-advisories.json";
+import { CarrierAdvisory } from "@/lib/types";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "dev-api-key";
@@ -115,4 +117,29 @@ export async function getRates(): Promise<LaneSummary[]> {
 }
 export async function getPorts() {
   return Promise.resolve(ports);
+}
+export async function getCarrierAdvisories(): Promise<CarrierAdvisory[]> {
+  if (USE_MOCKS) {
+    return carriersAdvisoriesMock as CarrierAdvisory[];
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/carriers/advisories`, {
+      headers,
+      next: { revalidate: 300 },
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.warn(
+      "Failed to fetch live /carriers/advisories, falling back to mock data:",
+      error,
+    );
+
+    return carriersAdvisoriesMock as CarrierAdvisory[];
+  }
 }
