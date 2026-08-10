@@ -41,3 +41,17 @@ export interface RateCompareData {
 export interface RatesAllResponse {
   lanes: LaneSummary[];
 }
+export type PortCongestionLevel = "low" | "medium" | "high" | "critical" | "elevated" | "normal";
+
+export interface Port {
+  id: string;
+  code?: string;
+  name: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  congestion_level: PortCongestionLevel;
+  congestion_pct: number;
+  vessels_waiting: number;
+  avg_dwell_days?: number;
+}
