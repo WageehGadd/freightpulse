@@ -1,0 +1,76 @@
+{
+  "lanes": [
+    {
+      "trade_lane": "Shanghai-Europe",
+      "container_type": "40ft",
+      "current_rate_usd": 2450,
+      "change_7d_pct": 5.2,
+      "trend": "rising",
+      "source": "Freightos FBX",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Shanghai-Jeddah",
+      "container_type": "40ft",
+      "current_rate_usd": 2890,
+      "change_7d_pct": 8.4,
+      "trend": "rising",
+      "source": "Drewry WCI",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Singapore-Dubai",
+      "container_type": "40ft",
+      "current_rate_usd": 1980,
+      "change_7d_pct": -2.1,
+      "trend": "falling",
+      "source": "SCFI",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Ningbo-Alexandria",
+      "container_type": "40ft",
+      "current_rate_usd": 2150,
+      "change_7d_pct": 0.0,
+      "trend": "stable",
+      "source": "Freightos FBX",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Qingdao-Jebel Ali",
+      "container_type": "40ft",
+      "current_rate_usd": 2240,
+      "change_7d_pct": -3.5,
+      "trend": "falling",
+      "source": "Drewry WCI",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Shanghai-Rotterdam",
+      "container_type": "40ft",
+      "current_rate_usd": 2600,
+      "change_7d_pct": 4.1,
+      "trend": "rising",
+      "source": "Xeneta",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Shenzhen-Riyadh",
+      "container_type": "20ft",
+      "current_rate_usd": 1420,
+      "change_7d_pct": 1.5,
+      "trend": "rising",
+      "source": "Freightos FBX",
+      "rate_date": "2026-08-10"
+    },
+    {
+      "trade_lane": "Singapore-Jeddah",
+      "container_type": "20ft",
+      "current_rate_usd": 1350,
+      "change_7d_pct": -1.8,
+      "trend": "falling",
+      "source": "SCFI",
+      "rate_date": "2026-08-10"
+    }
+  ]
+}
