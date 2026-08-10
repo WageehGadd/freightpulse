@@ -1,7 +1,7 @@
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ class CarrierTranslator:
     def __init__(self) -> None:
         """Initialize the translator without loading the model."""
         self.model_name: str = "Helsinki-NLP/opus-mt-ar-en"
-        self._tokenizer: Any | None = None
-        self._model: Any | None = None
+        self._tokenizer: Optional[Any] = None  # noqa: UP045
+        self._model: Optional[Any] = None  # noqa: UP045
         self._is_loaded: bool = False
 
     def _load_model(self) -> None:
