@@ -65,9 +65,11 @@ export type AdvisoryType =
   | "surcharge"
   | "route_suspension"
   | "schedule_change"
-  | "congestion";
+  | "congestion"
+  | "capacity"
+  | "pricing";
 
-export type AdvisorySeverity = "low" | "medium" | "high";
+export type AdvisorySeverity = "low" | "medium" | "high" | "critical" | "elevated" | "advisory" | "normal";
 
 export interface CarrierAdvisory {
   id: string;
@@ -77,6 +79,7 @@ export interface CarrierAdvisory {
   summary: string;
   affected_lanes: string[];
   effective_date: string | null;
+  effective_end_date?: string | null;
   source_url: string;
   impact_severity: AdvisorySeverity;
   published_at: string;
