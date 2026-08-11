@@ -1,9 +1,8 @@
-import asyncio
-
 import pytest
+import pytest_asyncio
 from dotenv import load_dotenv
+import app.redis_client as redis_module
 
-# Load test environment variables before importing anything from the app.
 load_dotenv(".env.test", override=True)
 
 from httpx import AsyncClient, ASGITransport
@@ -12,26 +11,19 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
 )
+from sqlalchemy.pool import NullPool
 
-from app.database import Base
+from app.database import Base, get_db
 from app.config import settings
 from app.main import app
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def db_session():
-    """
-    Create all database tables before each test and drop them afterward
-    so every test starts with a clean database state.
-    """
-    engine = create_async_engine(settings.DATABASE_URL)
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        poolclass=NullPool,
+    )
 
     async_session = async_sessionmaker(
         engine,
@@ -51,21 +43,35 @@ async def db_session():
     await engine.dispose()
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def client(db_session):
-    """
-    Create an HTTP client that communicates directly with the FastAPI app
-    without requiring a running Uvicorn server.
-    """
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(
-        transport=transport,
-        base_url="http://test",
-    ) as ac:
-        yield ac
+    try:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_redis():
+    yield
+
+    if redis_module._redis_client is not None:
+        await redis_module._redis_client.aclose()
+        redis_module._redis_client = None
 
 
 @pytest.fixture
 def auth_headers():
     return {"X-API-Key": settings.API_KEY}
+
+

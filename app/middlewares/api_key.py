@@ -16,7 +16,7 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
         if not api_key or api_key != settings.API_KEY:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid or missing API key"},
-            )
+                content={"error": {"code": "UNAUTHORIZED", "message": "Invalid or missing API key", "details": {}}},
+    )
 
         return await call_next(request)

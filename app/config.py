@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     VESSELFINDER_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     EXCHANGE_RATE_API_KEY: str = ""
+    BRIEF_STORAGE_PATH: str = "./data/briefs"
 
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
