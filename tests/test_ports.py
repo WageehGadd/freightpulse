@@ -23,6 +23,7 @@ async def test_ports_congestion_map_returns_latest(client, db_session, auth_head
             port_code="EGPSD",
             port_name="Port Said",
             congestion_index=62.0,  # the latest congestion index
+            vessels_waiting=14,
             severity="elevated",
             measured_at=datetime.utcnow(),
         )
@@ -33,6 +34,10 @@ async def test_ports_congestion_map_returns_latest(client, db_session, auth_head
     ports = response.json()["ports"]
     assert len(ports) == 1
     assert ports[0]["congestion_index"] == 62.0
+    assert ports[0]["port_id"] is not None
+    assert ports[0]["port_code"] == "EGPSD"
+    assert ports[0]["country"] == "Egypt"
+    assert ports[0]["vessels_waiting"] == 14
     assert ports[0]["latitude"] is not None  # the latitude is not None
 
 

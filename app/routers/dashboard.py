@@ -1,20 +1,13 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.database import get_db
-from app.models import (
-    CarrierAdvisory,
-    FreightRate,
-    PortCongestion,
-    RateAlert,
-    RateTrend,
-)
+from app.models import FreightRate, RateTrend, PortCongestion, CarrierAdvisory, RateAlert
 from app.schemas.dashboard import (
-    DashboardAdvisorySummary,
+    DashboardResponse,
     DashboardLaneSummary,
     DashboardPortSummary,
-    DashboardResponse,
+    DashboardAdvisorySummary,
 )
 
 router = APIRouter()
@@ -77,7 +70,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
 
     # Get the count of unread rate alerts
     unread_count = await db.scalar(
-        select(func.count()).select_from(RateAlert).where(RateAlert.is_read == False)
+        select(func.count()).select_from(RateAlert).where(RateAlert.is_read == False)  # noqa: E712
     )
 
     return DashboardResponse(

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-
 from app.redis_client import get_redis
 
 router = APIRouter()

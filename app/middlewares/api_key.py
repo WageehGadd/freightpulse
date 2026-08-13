@@ -1,7 +1,6 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
 from app.config import settings
 
 EXEMPT_PATHS = ["/docs", "/redoc", "/openapi.json", "/api/v1/health"]
