@@ -128,7 +128,11 @@ def seed_database(clear_existing: bool = True, inject_spike: bool = True) -> int
 
         rows = [
             FreightRate(
+                source="SCFI",
                 trade_lane=row["trade_lane"],
+                origin_port="Shanghai",
+                dest_region="Rotterdam",
+                container_type="40ft",
                 rate_date=row["rate_date"],
                 rate_usd=row["rate_usd"],
             )

@@ -31,7 +31,10 @@ def _load_recent_rates(db: Session, days: int = TREND_WINDOW_DAYS) -> pd.DataFra
         FreightRate.rate_date,
         FreightRate.rate_usd,
     ).filter(FreightRate.rate_date >= cutoff)
-    return pd.read_sql(query.statement, db.bind)
+    df = pd.read_sql(query.statement, db.bind)
+    if not df.empty and "rate_usd" in df.columns:
+        df["rate_usd"] = df["rate_usd"].astype(float)
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +94,7 @@ def _persist_alert(db: Session, result: RateAnomalySchema) -> None:
     payload = result.model_dump()
     db.add(
         RateAlert(
+            user_id=payload["user_id"],
             trade_lane=payload["trade_lane"],
             alert_type=payload["alert_type"],
             message=payload["message"],

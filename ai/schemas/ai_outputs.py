@@ -1,7 +1,11 @@
 from datetime import date
 from typing import Literal
+import uuid
 
 from pydantic import BaseModel, Field
+
+# System user ID for automated alerts until user subscriptions are implemented
+SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 class RateTrendSchema(BaseModel):
@@ -21,6 +25,7 @@ class RateTrendSchema(BaseModel):
 class RateAnomalySchema(BaseModel):
     """AI-2 output: one detected anomaly event for one trade lane."""
 
+    user_id: uuid.UUID = Field(default_factory=lambda: SYSTEM_USER_ID)
     trade_lane: str
     alert_type: Literal["rate_spike", "rate_drop"]
     message: str = Field(min_length=10)

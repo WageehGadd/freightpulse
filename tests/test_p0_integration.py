@@ -13,7 +13,11 @@ def _seed_lane(session_factory, trade_lane: str, rates: list[float]) -> None:
         for i, rate in enumerate(rates):
             session.add(
                 FreightRate(
+                    source="SCFI",
                     trade_lane=trade_lane,
+                    origin_port="Shanghai",
+                    dest_region="Rotterdam",
+                    container_type="40ft",
                     rate_date=today - timedelta(days=n - 1 - i),
                     rate_usd=rate,
                 )
