@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, DateTime, func, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -21,3 +21,7 @@ class RouteBrief(Base):
     status: Mapped[str] = mapped_column(String, default="pending")  # pending|generating|completed|failed
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        Index("idx_briefs_user", "user_id", "created_at"),
+        Index("idx_briefs_status", "status"),
+    )

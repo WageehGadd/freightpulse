@@ -1,6 +1,6 @@
 import uuid
 from datetime import date
-from sqlalchemy import String, Numeric, Float, Boolean, Date, UniqueConstraint
+from sqlalchemy import String, Numeric, Float, Boolean, Date, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -21,5 +21,10 @@ class RateTrend(Base):
     anomaly_flag: Mapped[bool] = mapped_column(Boolean, default=False)
 
     __table_args__ = (
-        UniqueConstraint("trade_lane", "computed_date", name="uq_rate_trend"),
+        UniqueConstraint(
+            "trade_lane",
+            "computed_date",
+            name="uq_rate_trend",
+        ),
+        Index("idx_trends_lane_date", "trade_lane", "computed_date"),
     )

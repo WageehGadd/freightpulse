@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, Boolean, DateTime, func
+from sqlalchemy import String, Float, Boolean, DateTime, func, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -17,3 +17,7 @@ class RateAlert(Base):
     magnitude_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        Index("idx_alerts_user_unread", "user_id", "is_read", "created_at"),
+        Index("idx_alerts_type", "alert_type", "created_at"),
+    )

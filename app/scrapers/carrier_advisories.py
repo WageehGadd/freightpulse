@@ -138,7 +138,11 @@ class CarrierAdvisoryScraper(BaseScraper):
                         carrier=carrier_name,
                         advisory_type=advisory_type,
                         title=entry.title,
-                        summary=getattr(entry, "description", None),
+                        # Preserve the source content for the AI summarizer.
+                        # The AI task fills summary and impact_severity afterwards.
+                        raw_text=getattr(entry, "description", None),
+                        summary=None,
+                        impact_severity=None,
                         affected_lanes=None,
                         effective_date=None,
                         source_url=entry.link,

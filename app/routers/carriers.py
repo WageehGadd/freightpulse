@@ -37,7 +37,7 @@ async def get_carrier_advisories(
                 summary=a.summary,
                 affected_lanes=a.affected_lanes,
                 effective_date=a.effective_date,
-                impact_severity=None,  # AI 
+                impact_severity=a.impact_severity,
                 source_url=a.source_url,
                 published_at=a.published_at,
             )

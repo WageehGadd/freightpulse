@@ -195,7 +195,9 @@ async def seed_carrier_advisories(session):
                 carrier=carrier,
                 advisory_type=adv_type,
                 title=title,
+                raw_text=summary,
                 summary=summary,
+                impact_severity=severity,
                 affected_lanes=lanes,
                 effective_date=date.today() + timedelta(days=7),
                 published_at=(
