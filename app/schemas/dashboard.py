@@ -9,6 +9,11 @@ class DashboardLaneSummary(BaseModel):
     change_7d_pct: float | None
 
 
+class DashboardRateTrendPoint(BaseModel):
+    date: date
+    avg_rate_usd: float
+
+
 class DashboardPortSummary(BaseModel):
     port_code: str
     port_name: str
@@ -26,6 +31,7 @@ class DashboardAdvisorySummary(BaseModel):
 class DashboardResponse(BaseModel):
     tracked_lanes_count: int
     lanes_summary: list[DashboardLaneSummary]
+    rate_trend_30d: list[DashboardRateTrendPoint]
     port_congestion_overview: list[DashboardPortSummary]
     recent_advisories: list[DashboardAdvisorySummary]
     unread_alert_count: int
