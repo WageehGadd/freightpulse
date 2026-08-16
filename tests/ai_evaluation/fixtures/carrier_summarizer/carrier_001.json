@@ -1,0 +1,19 @@
+{
+  "id": "carrier_001",
+  "version": 1,
+  "description": "English advisory with low severity",
+  "input": {
+    "carrier": "Carrier A",
+    "title": "Test Title",
+    "advisory_text": "Test English Advisory"
+  },
+  "expected_output": {
+    "summary": "Test English summary",
+    "affected_lanes": ["US-EU"],
+    "impact_severity": "low"
+  },
+  "criteria": {
+    "must_have_summary": true,
+    "allowed_severities": ["low", "medium", "high"]
+  }
+}

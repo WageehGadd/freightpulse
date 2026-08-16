@@ -5,14 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import CarrierAdvisory
 from app.schemas.carrier import CarrierAdvisoriesListResponse, CarrierAdvisoryResponse
+from app.auth.rate_limit import RateLimiter
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(RateLimiter())])
 
 
 @router.get("/carriers/advisories", response_model=CarrierAdvisoriesListResponse)
 async def get_carrier_advisories(
     carrier: str | None = Query(default=None),
-    type: str | None = Query(default=None),  
+    type: str | None = Query(default=None),
     affected_lane: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -38,7 +39,7 @@ async def get_carrier_advisories(
                 summary=a.summary,
                 affected_lanes=a.affected_lanes,
                 effective_date=a.effective_date,
-                impact_severity=None,  # AI 
+                impact_severity=a.impact_severity,
                 source_url=a.source_url,
                 published_at=a.published_at,
             )

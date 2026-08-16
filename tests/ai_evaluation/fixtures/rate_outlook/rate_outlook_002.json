@@ -1,0 +1,20 @@
+{
+  "id": "rate_outlook_002",
+  "version": 1,
+  "description": "Edge case rate outlook with insufficient data",
+  "input": {
+    "lane": "US-APAC",
+    "current_rate": "",
+    "historical_context": "",
+    "market_factors": ""
+  },
+  "expected_output": {
+    "outlook_text": "Insufficient data to provide a reliable outlook. No sufficient historical rates are available for analysis.",
+    "recommendation": "wait",
+    "confidence": 20
+  },
+  "criteria": {
+    "allowed_recommendations": ["book_now", "wait", "hedge"],
+    "confidence_range": [30, 100]
+  }
+}

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Boolean, Date, Float, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, Float, Index, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +22,13 @@ class RateTrend(Base):
     slope_per_week: Mapped[float | None] = mapped_column(Float, nullable=True)
     anomaly_flag: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    outlook_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    recommendation: Mapped[str | None] = mapped_column(String, nullable=True)
+    confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="none", server_default="none")
+    error_message: Mapped[str | None] = mapped_column(String, nullable=True)
+
     __table_args__ = (
         UniqueConstraint("trade_lane", "computed_date", name="uq_rate_trend"),
+        Index("idx_trends_lane_date", "trade_lane", "computed_date"),
     )

@@ -194,6 +194,9 @@ async def seed_carrier_advisories(session):
                 carrier=carrier,
                 advisory_type=adv_type,
                 title=title,
+                # These are explicitly pre-processed demo advisories; the
+                # seeded source text is retained for model compatibility.
+                raw_text=summary,
                 summary=summary,
                 affected_lanes=lanes,
                 effective_date=datetime.now(timezone.utc).date() + timedelta(days=7),
@@ -229,4 +232,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

@@ -10,8 +10,9 @@ from app.schemas.port import (
     PortCongestionResponse,
     PortMapEntry,
 )
+from app.auth.rate_limit import RateLimiter
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(RateLimiter())])
 
 
 @router.get("/ports/congestion-map", response_model=PortCongestionMapResponse)

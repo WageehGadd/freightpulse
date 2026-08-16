@@ -44,3 +44,11 @@ celerybeat.pid
 
 # Playwright
 .playwright/
+
+.venv/
+.ruff_cache/
+# Generated test artifacts
+storage/route_briefs/*.pdf
+
+# Local development scratch scripts
+drop_all.py

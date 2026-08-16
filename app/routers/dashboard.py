@@ -16,12 +16,18 @@ from app.schemas.dashboard import (
     DashboardPortSummary,
     DashboardResponse,
 )
+from app.models.user import User
+from app.auth.security import get_current_user
+from app.auth.rate_limit import RateLimiter
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(RateLimiter())])
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
-async def get_dashboard(db: AsyncSession = Depends(get_db)):
+async def get_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
 # Get the latest rate for each trade lane
     latest_dates_subq = (
         select(FreightRate.trade_lane, func.max(FreightRate.rate_date).label("max_date"))
@@ -75,9 +81,12 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
     advisories_stmt = select(CarrierAdvisory).order_by(CarrierAdvisory.published_at.desc()).limit(5)
     advisories = (await db.execute(advisories_stmt)).scalars().all()
 
-    # Get the count of unread rate alerts
+    # Get the count of unread rate alerts for the current user
     unread_count = await db.scalar(
-        select(func.count()).select_from(RateAlert).where(RateAlert.is_read == False)
+        select(func.count()).select_from(RateAlert).where(
+            RateAlert.is_read == False,
+            RateAlert.user_id == current_user.id
+        )
     )
 
     return DashboardResponse(
@@ -102,4 +111,4 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
             for a in advisories
         ],
         unread_alert_count=unread_count or 0,
-    )   
+    )

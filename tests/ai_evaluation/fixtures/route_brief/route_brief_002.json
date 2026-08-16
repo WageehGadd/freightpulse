@@ -1,0 +1,21 @@
+{
+  "id": "route_brief_002",
+  "version": 1,
+  "description": "Edge case route brief with missing brief_markdown",
+  "input": {
+    "origin": "SFO",
+    "destination": "TOK",
+    "carrier": "Carrier X",
+    "advisories": "Minor delay",
+    "conditions": "Weather concerns"
+  },
+  "expected_output": {
+    "brief_markdown": "# Route Brief\n\nAll systems nominal. The route from SFO to TOK may face moderate weather delays, but overall risk remains medium. Recommended to wait for further updates before proceeding.",
+    "recommendation": "wait",
+    "risk_level": "medium"
+  },
+  "criteria": {
+    "must_have_summary": true,
+    "allowed_recommendations": ["ship_now", "wait", "reroute"]
+  }
+}

@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.database import AsyncSessionLocal
 from app.models import CarrierAdvisory
 from app.scrapers.base import BaseScraper
+from app.tasks.ai_generation import summarize_advisory
 
 logger = structlog.get_logger()
 
@@ -73,6 +74,7 @@ class CarrierAdvisoryScraper(BaseScraper):
 
     async def scrape(self) -> dict:
         rows_upserted = 0
+        advisory_ids: list[str] = []
 
         async with AsyncSessionLocal() as session:
             for carrier_name, feed_url in CARRIER_FEEDS.items():
@@ -143,12 +145,23 @@ class CarrierAdvisoryScraper(BaseScraper):
                         impact_severity=None,
                         source_url=entry.link,
                         published_at=published_at,
-                    )
+                    ).returning(CarrierAdvisory.id)
 
-                    await session.execute(stmt)
+                    advisory_id = (await session.execute(stmt)).scalar_one()
+                    advisory_ids.append(str(advisory_id))
                     rows_upserted += 1
 
             await session.commit()
+
+        for advisory_id in advisory_ids:
+            try:
+                summarize_advisory.delay(advisory_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "carrier_advisory_summary_enqueue_failed",
+                    advisory_id=advisory_id,
+                    error=str(exc),
+                )
 
         logger.info(
             "carrier_advisories_updated",
@@ -156,4 +169,3 @@ class CarrierAdvisoryScraper(BaseScraper):
         )
 
         return {"rows_upserted": rows_upserted}
-

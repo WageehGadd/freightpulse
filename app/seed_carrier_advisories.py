@@ -3,9 +3,9 @@ from datetime import date, datetime, timedelta, timezone
 from app.database import AsyncSessionLocal
 from app.models import CarrierAdvisory
 
-# MOCK DATA - Temporary until a reliable solution for real scraping is available. 
-# CMA CGM, Maersk, and MSC are protected by bot protection systems 
-# # such as DataDome or similar solutions. 
+# MOCK DATA - Temporary until a reliable solution for real scraping is available.
+# CMA CGM, Maersk, and MSC are protected by bot protection systems
+# # such as DataDome or similar solutions.
 # Realistic sample data based on patterns observed in actual # CMA CGM RSS feed entries.
 SAMPLE_ADVISORIES = [
     {
@@ -74,7 +74,9 @@ SAMPLE_ADVISORIES = [
 async def seed_carrier_advisories():
     async with AsyncSessionLocal() as session:
         for adv in SAMPLE_ADVISORIES:
-            session.add(CarrierAdvisory(**adv))
+            # These fixtures represent already processed demo advisories. The
+            # existing summary doubles as their seeded source content.
+            session.add(CarrierAdvisory(raw_text=adv["summary"], **adv))
         await session.commit()
     print(f"Seeded {len(SAMPLE_ADVISORIES)} realistic carrier advisories (mock data - scraping blocked)")
 
