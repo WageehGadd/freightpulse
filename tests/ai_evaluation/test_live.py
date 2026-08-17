@@ -11,35 +11,48 @@ from app.ai.route_brief_generator import RouteBriefGenerator
 # FREIGHTPULSE_ENABLE_LIVE_AI=1 is set. It demonstrates how the real LLM would be invoked.
 
 @pytest.mark.ai_live
-def test_live_carrier_summarizer():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1":
-        pytest.skip("Live AI tests are disabled")
-    # Use a realistic real input (could be derived from a fixture)
-    input_data = {"carrier": "Carrier A", "title": "Summary", "advisory_text": "Advisory"}
+@pytest.mark.asyncio
+async def test_live_carrier_summarizer():
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
     summarizer = CarrierSummarizer()
-    result = summarizer.generate_structured(**input_data)
+    result = await summarizer.summarize(
+        carrier="Carrier A",
+        title="Port Congestion Advisory",
+        advisory_text="Effective Sept 1 a surcharge of $200 per TEU applies due to port congestion.",
+    )
     assert result is not None
+    assert result.summary
+
 
 @pytest.mark.ai_live
-def test_live_rate_outlook():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1":
-        pytest.skip("Live AI tests are disabled")
-    input_data = {"lane": "US-APAC", "date": "2024-01-01"}
+@pytest.mark.asyncio
+async def test_live_rate_outlook():
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
     narrator = RateOutlookNarrator()
-    result = narrator.generate_structured(**input_data)
+    result = await narrator.narrate(
+        lane="Shanghai-Rotterdam",
+        current_rate="2200 USD on 2026-08-15",
+        historical_context="7d avg 2100 USD, 30d avg 1950 USD, trend rising (+5.1% per week)",
+        market_factors="Peak season demand surge and Red Sea rerouting",
+    )
     assert result is not None
+    assert result.outlook_text
+
 
 @pytest.mark.ai_live
-def test_live_route_brief():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1":
-        pytest.skip("Live AI tests are disabled")
-    input_data = {
-        "origin": "NYC",
-        "destination": "LON",
-        "carrier": "Carrier X",
-        "advisories": "None",
-        "conditions": "Clear",
-    }
+@pytest.mark.asyncio
+async def test_live_route_brief():
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
     generator = RouteBriefGenerator()
-    result = generator.generate_structured(**input_data)
+    result = await generator.generate_brief(
+        origin="Shanghai",
+        destination="Rotterdam",
+        carrier="Maersk",
+        advisories="Port congestion surcharge $200/TEU effective Sept 1.",
+        conditions="Clear weather at origin; 3-day dwell time at destination port.",
+    )
     assert result is not None
+    assert result.brief_markdown

@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     AI_MAX_REQUESTS_PER_MINUTE: int = 0  # 0 = unlimited
     AI_FAIL_OPEN_ON_REDIS_ERROR: bool = True
 
+    # CORS Configuration
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
+
 
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

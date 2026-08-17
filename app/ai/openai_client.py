@@ -32,12 +32,14 @@ class FreightPulseAIClient:
         model: Optional[str] = None,  # noqa: UP045
         temperature: Optional[float] = None,  # noqa: UP045
         max_tokens: Optional[int] = None,  # noqa: UP045
+        timeout: float = 30.0,
     ):
         # AsyncOpenAI will automatically fall back to os.environ.get("OPENAI_API_KEY")
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
         self.model = model or getattr(settings, "AI_MODEL", "gpt-4o-mini")
         self.temperature = temperature if temperature is not None else getattr(settings, "AI_TEMPERATURE", 0.3)
         self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "AI_MAX_TOKENS", 1000)
+
         self.cost_per_1m_input_tokens = 0.15
         self.cost_per_1m_output_tokens = 0.60
 

@@ -73,3 +73,19 @@ async def get_current_user(
         key_prefix=api_key_obj.key_prefix
     )
     return user
+
+
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    FastAPI Dependency ensuring the current user has administrative privileges.
+    Raises 403 FORBIDDEN if the user is not an admin.
+    """
+    if not getattr(current_user, "is_admin", False):
+        logger.warning("auth_forbidden_admin_required", user_id=str(current_user.id))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrative privileges required",
+        )
+    return current_user

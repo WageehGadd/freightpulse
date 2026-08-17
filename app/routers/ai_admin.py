@@ -11,7 +11,7 @@ from app.ai.budget_guard import BudgetGuard
 from app.ai.prompts import registry
 from app.ai.telemetry import AITelemetry
 from app.auth.rate_limit import RateLimiter
-from app.auth.security import get_current_user
+from app.auth.security import get_current_admin_user, get_current_user
 from app.config import settings
 from app.models.user import User
 
@@ -35,7 +35,7 @@ class AIPromptMetadataResponse(BaseModel):
 
 @router.get("/health", response_model=AIHealthResponse)
 async def get_ai_health(
-    current_user: User = Depends(get_current_user),  # noqa: ARG001
+    current_user: User = Depends(get_current_admin_user),  # noqa: ARG001
 ):
     """Inspect AI provider status, active prompt configurations, and budget utilization."""
     redis_status = "connected"
@@ -76,7 +76,7 @@ async def get_ai_health(
 
 @router.get("/metrics")
 async def get_ai_metrics(
-    current_user: User = Depends(get_current_user),  # noqa: ARG001
+    current_user: User = Depends(get_current_admin_user),  # noqa: ARG001
 ):
     """Retrieve aggregated daily AI telemetry, token consumption, and cost breakdown."""
     return await AITelemetry.get_daily_metrics()
@@ -84,8 +84,9 @@ async def get_ai_metrics(
 
 @router.get("/prompts", response_model=AIPromptMetadataResponse)
 async def get_ai_prompt_metadata(
-    current_user: User = Depends(get_current_user),  # noqa: ARG001
+    current_user: User = Depends(get_current_admin_user),  # noqa: ARG001
 ):
+
     """List available prompt versions and metadata without exposing raw system prompts or templates."""
     features = ["carrier_summarizer", "rate_outlook", "route_brief"]
     result: Dict[str, Dict[str, Any]] = {}

@@ -11,7 +11,7 @@ from app.ai.rate_outlook_narrator import RateOutlookNarrator
 from app.ai.route_brief_generator import RouteBriefGenerator
 from app.ai.translator import CarrierTranslator
 from app.auth.rate_limit import RateLimiter
-from app.auth.security import get_current_user
+from app.auth.security import get_current_admin_user, get_current_user
 from app.config import settings
 from app.main import app
 from app.models.user import User
@@ -20,6 +20,7 @@ from app.schemas.ai_outputs import (
     RateOutlookOutput,
     RouteBriefOutput,
 )
+
 
 
 @pytest.fixture
@@ -118,9 +119,12 @@ def test_health_check_endpoints_do_not_invoke_llm():
     mock_db.scalar = AsyncMock(return_value=None)
 
     from app.database import get_db
+    mock_user.is_admin = True
     app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_user
     app.dependency_overrides[RateLimiter] = lambda: None
     app.dependency_overrides[get_db] = lambda: mock_db
+
 
     try:
         with patch("openai.resources.chat.completions.Completions.create") as mock_openai_create:
@@ -175,8 +179,11 @@ def test_prompts_endpoint_hides_raw_system_prompts():
     """Verify GET /api/v1/ai/prompts returns feature metadata without exposing raw system prompts."""
     client = TestClient(app)
     mock_user = MagicMock(spec=User)
+    mock_user.is_admin = True
     app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_user
     app.dependency_overrides[RateLimiter] = lambda: None
+
 
     try:
         res = client.get("/api/v1/ai/prompts")
