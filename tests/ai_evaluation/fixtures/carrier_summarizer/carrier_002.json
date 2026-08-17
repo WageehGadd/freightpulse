@@ -1,0 +1,19 @@
+{
+  "id": "carrier_002",
+  "version": 1,
+  "description": "Carrier summarizer with medium severity and multi-lane",
+  "input": {
+    "carrier": "Carrier B",
+    "title": "Test Title B",
+    "advisory_text": "Test advisory with medium severity"
+  },
+  "expected_output": {
+    "summary": "Test medium summary",
+    "affected_lanes": ["US-APAC", "EU-APAC"],
+    "impact_severity": "medium"
+  },
+  "criteria": {
+    "must_have_summary": true,
+    "allowed_severities": ["low", "medium", "high"]
+  }
+}

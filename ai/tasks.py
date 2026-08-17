@@ -31,10 +31,21 @@ def _load_recent_rates(db: Session, days: int = TREND_WINDOW_DAYS) -> pd.DataFra
         FreightRate.rate_date,
         FreightRate.rate_usd,
     ).filter(FreightRate.rate_date >= cutoff)
-    df = pd.read_sql(query.statement, db.bind)
-    if not df.empty and "rate_usd" in df.columns:
-        df["rate_usd"] = df["rate_usd"].astype(float)
+    rows = query.all()
+    df = pd.DataFrame(
+        [
+            {
+                "trade_lane": r.trade_lane,
+                "rate_date": r.rate_date,
+                "rate_usd": float(r.rate_usd) if r.rate_usd is not None else 0.0,
+            }
+            for r in rows
+        ]
+    )
+    if df.empty:
+        df = pd.DataFrame(columns=["trade_lane", "rate_date", "rate_usd"])
     return df
+
 
 
 # ---------------------------------------------------------------------------

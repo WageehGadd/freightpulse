@@ -1,0 +1,21 @@
+{
+  "id": "route_brief_001",
+  "version": 1,
+  "description": "Normal route brief, low risk",
+  "input": {
+    "origin": "NYC",
+    "destination": "LON",
+    "carrier": "Carrier A",
+    "advisories": "No issues",
+    "conditions": "All clear"
+  },
+  "expected_output": {
+    "brief_markdown": "## Route Brief\n\nAll systems are operational. The shipping lane from NYC to LON is clear with no significant delays. Weather is stable, and customs processing times are within normal ranges. Recommended to ship now with standard routing.",
+    "recommendation": "ship_now",
+    "risk_level": "low"
+  },
+  "criteria": {
+    "must_have_summary": false,
+    "allowed_recommendations": ["ship_now", "wait", "reroute"]
+  }
+}

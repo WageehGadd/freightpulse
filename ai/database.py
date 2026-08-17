@@ -30,7 +30,13 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker, Mapped, mapp
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./freightpulse.db")
+raw_url = os.getenv("AI_DATABASE_URL")
+if not raw_url:
+    raw_url = os.getenv("DATABASE_URL", "sqlite:///./freightpulse.db")
+    if raw_url.startswith("postgresql+asyncpg://"):
+        raw_url = raw_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+
+DATABASE_URL = raw_url
 
 engine_kwargs = {}
 if DATABASE_URL.startswith("sqlite"):
@@ -39,6 +45,7 @@ if DATABASE_URL.startswith("sqlite"):
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 
 class FreightRate(Base):

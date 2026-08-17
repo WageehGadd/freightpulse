@@ -19,9 +19,22 @@ def test_beat_schedule_configured():
     assert schedule["detect-anomalies-daily-at-11"]["task"] == "ai.tasks.run_daily_anomaly_detection"
 
 
-def test_database_helpers():
+def test_database_helpers(monkeypatch):
     """init_db is idempotent; get_db yields a session and closes it cleanly."""
-    from ai.database import get_db, init_db
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    import ai.database
+    from ai.database import Base, get_db, init_db
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    monkeypatch.setattr(ai.database, "engine", engine)
+    monkeypatch.setattr(ai.database, "SessionLocal", TestingSessionLocal)
 
     init_db()  # create_all is a no-op when tables already exist
 
