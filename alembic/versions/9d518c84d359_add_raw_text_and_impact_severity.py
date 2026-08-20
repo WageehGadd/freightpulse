@@ -19,8 +19,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('carrier_advisories', sa.Column('raw_text', sa.String(), nullable=False, server_default=''))
-    op.add_column('carrier_advisories', sa.Column('impact_severity', sa.String(), nullable=True))
+    existing_columns = {
+        column["name"]
+        for column in sa.inspect(op.get_bind()).get_columns("carrier_advisories")
+    }
+
+    if "raw_text" not in existing_columns:
+        op.add_column(
+            "carrier_advisories",
+            sa.Column("raw_text", sa.String(), nullable=False, server_default=""),
+        )
+    if "impact_severity" not in existing_columns:
+        op.add_column(
+            "carrier_advisories",
+            sa.Column("impact_severity", sa.String(), nullable=True),
+        )
 
 
 def downgrade() -> None:

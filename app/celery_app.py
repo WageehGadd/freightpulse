@@ -11,6 +11,12 @@ celery_app = Celery(
         "app.tasks.scraping",
         "app.tasks.analysis",
         "app.tasks.ai_generation",
+        "app.tasks.rate_outlook_generation",
+        "app.tasks.route_brief_generation",
+        "app.tasks.rate_ingestion",
+        "app.tasks.trend_computation",
+        "app.tasks.alert_evaluation",
+        "app.tasks.orchestration",
     ],
 )
 
@@ -22,12 +28,16 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     beat_schedule={
+        "run-daily-pipeline": {
+            "task": "app.tasks.orchestration.trigger_daily_pipeline",
+            "schedule": crontab(hour=2, minute=0),
+        },
         "compute-rate-trends": {
-            "task": "app.tasks.analysis.compute_rate_trends",
+            "task": "app.tasks.trend_computation.compute_rate_trends",
             "schedule": crontab(hour=10, minute=0),
         },
         "detect-rate-anomalies": {
-            "task": "app.tasks.analysis.detect_rate_anomalies",
+            "task": "app.tasks.alert_evaluation.evaluate_rate_alerts",
             "schedule": crontab(hour=11, minute=0),
         },
     },

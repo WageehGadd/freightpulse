@@ -13,6 +13,7 @@ class RouteBrief(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     origin: Mapped[str] = mapped_column(String, nullable=False)
     destination: Mapped[str] = mapped_column(String, nullable=False)
+    carrier: Mapped[str | None] = mapped_column(String, nullable=True)
     cargo_type: Mapped[str] = mapped_column(String, default="40ft")
     brief_markdown: Mapped[str | None] = mapped_column(String, nullable=True)
     recommendation: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -21,6 +22,10 @@ class RouteBrief(Base):
     status: Mapped[str] = mapped_column(String, default="pending")  # pending|generating|completed|failed
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
     __table_args__ = (
         Index("idx_briefs_user", "user_id", "created_at"),
         Index("idx_briefs_status", "status"),

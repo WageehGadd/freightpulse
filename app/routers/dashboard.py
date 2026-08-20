@@ -13,12 +13,14 @@ from app.schemas.dashboard import (
     DashboardAdvisorySummary,
 )
 
-router = APIRouter()
+from app.auth.rate_limit import RateLimiter
+
+router = APIRouter(dependencies=[Depends(RateLimiter)])
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard(db: AsyncSession = Depends(get_db)):
-# Get the latest rate for each trade lane
+    # Get the latest rate for each trade lane
     latest_dates_subq = (
         select(FreightRate.trade_lane, func.max(FreightRate.rate_date).label("max_date"))
         .group_by(FreightRate.trade_lane)

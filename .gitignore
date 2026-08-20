@@ -4,10 +4,22 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# Virtual environments
+.venv/
 venv/
 env/
 ENV/
+
+# Build / packaging
+build/
+dist/
+downloads/
+eggs/
+.eggs/
 *.egg-info/
+.installed.cfg
+*.egg
 
 # Environment variables
 .env
@@ -15,16 +27,21 @@ ENV/
 .env.*
 !.env.example
 
-
-
-# Logs
-*.log
-logs/
+# Databases & local state
+*.db
+freightpulse.db
 
 # Test coverage
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# Alembic
+alembic/versions/*.pyc
 
 # OS files
 .DS_Store
@@ -34,6 +51,7 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Docker local overrides
 docker-compose.override.yml
 
 # Celery
@@ -42,3 +60,14 @@ celerybeat.pid
 
 # Playwright
 .playwright/
+
+# Ruff
+.ruff_cache/
+
+# Generated test artifacts
+storage/route_briefs/*.pdf
+scfi_debug.png
+
+
+# Local development scratch scripts
+drop_all.py

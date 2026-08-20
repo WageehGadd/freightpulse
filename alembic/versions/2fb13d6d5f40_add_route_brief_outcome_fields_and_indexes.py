@@ -1,7 +1,7 @@
 """add route brief outcome fields and query indexes
 
 Revision ID: 2fb13d6d5f40
-Revises: 9d518c84d358
+Revises: 9d518c84d359
 Create Date: 2026-08-11
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "2fb13d6d5f40"
-down_revision = "9d518c84d358"
+down_revision = "9d518c84d359"
 branch_labels = None
 depends_on = None
 

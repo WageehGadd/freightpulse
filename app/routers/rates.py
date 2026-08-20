@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -12,8 +14,37 @@ from app.schemas.rate import (
     TrendInfo,
     RateCompareResponse,
 )
+from app.tasks.rate_outlook_generation import generate_rate_outlook
 
 router = APIRouter()
+
+
+class RateOutlookJobResponse(BaseModel):
+    trend_id: str
+    status: str
+
+
+@router.post("/rates/outlook/{trend_id}", response_model=RateOutlookJobResponse)
+async def generate_rate_outlook_endpoint(
+    trend_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    trend = await db.get(RateTrend, trend_id)
+    if not trend:
+        raise HTTPException(status_code=404, detail=f"RateTrend '{trend_id}' not found")
+
+    trend.status = "pending"
+    await db.commit()
+
+    try:
+        generate_rate_outlook.delay(str(trend_id))
+    except Exception:
+        pass
+
+    return RateOutlookJobResponse(
+        trend_id=str(trend.id),
+        status="pending",
+    )
 
 
 @router.get("/rates/all", response_model=RatesAllResponse)

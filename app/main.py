@@ -1,11 +1,23 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.middlewares.api_key import ApiKeyMiddleware
-from app.routers import dashboard, rates, ports, carriers, health
+# pyrefly: ignore [missing-import]
 import structlog
-from app.routers import dashboard, rates, ports, carriers, health, exchange_rate
-from app.routers import bunker, alerts, websocket
+
+from app.routers import (
+    health,
+    dashboard,
+    rates,
+    ports,
+    carriers,
+    exchange_rate,
+    bunker,
+    alerts,
+    websocket,
+    ai,
+    route_brief,
+    users,
+)
 
 logger = structlog.get_logger()
 
@@ -17,19 +29,29 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.add_middleware(ApiKeyMiddleware)
-
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
     """Wrap any HTTPException in the standardized error envelope."""
-    code_map = {401: "UNAUTHORIZED", 404: "NOT_FOUND", 422: "VALIDATION_ERROR", 429: "RATE_LIMITED"}
+    code_map = {
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+        429: "RATE_LIMITED",
+    }
     code = code_map.get(exc.status_code, "ERROR")
     return JSONResponse(
         status_code=exc.status_code,
@@ -55,3 +77,7 @@ app.include_router(exchange_rate.router, prefix="/api/v1", tags=["Exchange Rate"
 app.include_router(bunker.router, prefix="/api/v1", tags=["Bunker"])
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(websocket.router, prefix="/api/v1", tags=["WebSocket"])
+app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(ai.router, prefix="/api/v1", tags=["AI"])
+app.include_router(route_brief.router, prefix="/api/v1", tags=["Route Briefs"])
+app.include_router(users.router, prefix="/api/v1", tags=["Users"])

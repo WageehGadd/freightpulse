@@ -1,0 +1,19 @@
+{
+  "id": "carrier_003",
+  "version": 1,
+  "description": "Corrupted fixture missing summary",
+  "input": {
+    "carrier": "Carrier C",
+    "title": "Bad Title",
+    "advisory_text": "Bad advisory"
+  },
+  "expected_output": {
+    "summary": "",
+    "affected_lanes": ["US-APAC"],
+    "impact_severity": "high"
+  },
+  "criteria": {
+    "must_have_summary": true,
+    "allowed_severities": ["low", "medium", "high"]
+  }
+}
