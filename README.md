@@ -85,10 +85,6 @@ Common Error Codes:
 | **Carriers** | `GET` | `/api/v1/carriers/advisories` | ❌ Public | List carrier advisories with filters |
 | **Forex** | `GET` | `/api/v1/exchange-rate/usd-egp` | ❌ Public | Cached USD to EGP foreign exchange rate |
 | **Bunker** | `GET` | `/api/v1/bunker/ifo380` | ❌ Public | Cached IFO380 bunker fuel prices by port |
-| **Alerts** | `POST` | `/api/v1/alerts/rules` | 🔒 **Yes** (User) | Create custom user rate alert rule |
-| **Alerts** | `GET` | `/api/v1/alerts/rules` | 🔒 **Yes** (User) | List user active alert rules |
-| **Alerts** | `DELETE`| `/api/v1/alerts/rules/{rule_id}` | 🔒 **Yes** (User) | Delete user alert rule |
-| **Alerts** | `GET` | `/api/v1/alerts/events` | 🔒 **Yes** (User) | List triggered alert events for current user |
 | **Alerts** | `GET` | `/api/v1/alerts` | ❌ Public | List triggered alerts (shared MVP) |
 | **Alerts** | `PATCH`| `/api/v1/alerts/{alert_id}/read` | ❌ Public | Mark an alert event as read |
 | **Route Briefs**| `POST` | `/api/v1/route-briefs` | 🔒 **Yes** (User) | Generate new AI route brief |
@@ -446,86 +442,7 @@ Common Error Codes:
 
 ---
 
-### 7. Rate Alerts & Custom Rules
-
-#### `POST /api/v1/alerts/rules`
-- **Auth**: 🔒 **Required** (`X-API-Key`)
-- **Description**: Creates a user-specific monitoring rule for rate spikes, drops, or absolute price thresholds.
-- **Request Body**:
-  ```json
-  {
-    "trade_lane": "CNSHA-EGPSD",
-    "alert_type": "rate_spike",
-    "magnitude_pct": 10.0
-  }
-  ```
-  *(Note: For `rate_spike` or `rate_drop`, provide `magnitude_pct`. For `threshold_above` or `threshold_below`, provide `target_usd`)*.
-- **cURL Example**:
-  ```bash
-  curl -X POST http://localhost:8000/api/v1/alerts/rules \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: dev_local_api_key_123" \
-    -d '{
-      "trade_lane": "CNSHA-EGPSD",
-      "alert_type": "rate_spike",
-      "magnitude_pct": 10.0
-    }'
-  ```
-- **Response `201 Created`**:
-  ```json
-  {
-    "id": "7b79a5c8-18e4-4d82-b7b5-0c6f1a8e1b12",
-    "trade_lane": "CNSHA-EGPSD",
-    "alert_type": "rate_spike",
-    "magnitude_pct": 10.0,
-    "target_usd": null,
-    "is_active": true,
-    "created_at": "2026-08-20T23:55:00Z"
-  }
-  ```
-
-#### `GET /api/v1/alerts/rules`
-- **Auth**: 🔒 **Required** (`X-API-Key`)
-- **Description**: Returns all active rules created by the authenticated user.
-- **cURL Example**:
-  ```bash
-  curl -X GET http://localhost:8000/api/v1/alerts/rules \
-    -H "X-API-Key: dev_local_api_key_123"
-  ```
-- **Response `200 OK`**:
-  ```json
-  [
-    {
-      "id": "7b79a5c8-18e4-4d82-b7b5-0c6f1a8e1b12",
-      "trade_lane": "CNSHA-EGPSD",
-      "alert_type": "rate_spike",
-      "magnitude_pct": 10.0,
-      "target_usd": null,
-      "is_active": true,
-      "created_at": "2026-08-20T23:55:00Z"
-    }
-  ]
-  ```
-
-#### `DELETE /api/v1/alerts/rules/{rule_id}`
-- **Auth**: 🔒 **Required** (`X-API-Key`)
-- **Path Parameters**:
-  - `rule_id` (*UUID, required*): ID of the rule to delete.
-- **cURL Example**:
-  ```bash
-  curl -X DELETE http://localhost:8000/api/v1/alerts/rules/7b79a5c8-18e4-4d82-b7b5-0c6f1a8e1b12 \
-    -H "X-API-Key: dev_local_api_key_123"
-  ```
-- **Response `204 No Content`**
-
-#### `GET /api/v1/alerts/events`
-- **Auth**: 🔒 **Required** (`X-API-Key`)
-- **Description**: Retrieves triggered alert events relevant to the authenticated user.
-- **cURL Example**:
-  ```bash
-  curl -X GET http://localhost:8000/api/v1/alerts/events \
-    -H "X-API-Key: dev_local_api_key_123"
-  ```
+### 7. Rate Alerts
 
 #### `GET /api/v1/alerts`
 - **Auth**: None (Public / Shared MVP)
@@ -604,7 +521,7 @@ Common Error Codes:
 - **Auth**: 🔒 **Required** (`X-API-Key`)
 - **Path Parameters**:
   - `brief_id` (*UUID, required*)
-- **Description**: Returns current generation status (`pending`, `generating`, `completed`, `failed`).
+- **Description**: Returns current generation status (`pending`, `generating`, `completed`, `failed`) and full report content once completed.
 - **cURL Example**:
   ```bash
   curl -X GET http://localhost:8000/api/v1/route-briefs/a9d5e381-e231-419b-a3d8-55a2c20a4421/status \
@@ -613,9 +530,14 @@ Common Error Codes:
 - **Response `200 OK`**:
   ```json
   {
+    "brief_id": "a9d5e381-e231-419b-a3d8-55a2c20a4421",
     "id": "a9d5e381-e231-419b-a3d8-55a2c20a4421",
     "status": "completed",
-    "error_message": null
+    "brief_markdown": "# Route Brief: Shanghai to Los Angeles\n\n## Overview\n...",
+    "recommendation": "ship_now",
+    "risk_level": "low",
+    "error_message": null,
+    "created_at": "2026-08-24T00:00:00Z"
   }
   ```
 

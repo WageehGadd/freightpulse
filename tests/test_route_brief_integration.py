@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import pytest
 import uuid
 import os
@@ -186,7 +187,14 @@ async def test_tenant_isolation_status_and_pdf(client, db_session, tenant_a_head
     # Tenant A can access its own status
     res = await client.get(f"/api/v1/route-briefs/{sample_brief_a.id}/status", headers=tenant_a_headers)
     assert res.status_code == 200
-    assert res.json()["status"] == "pending"
+    data = res.json()
+    assert data["status"] == "pending"
+    assert data["brief_id"] == str(sample_brief_a.id)
+    assert data["brief_markdown"] is None
+    assert data["recommendation"] is None
+    assert data["risk_level"] is None
+    assert data["error_message"] is None
+    assert data["created_at"] is not None
 
     # Tenant B gets 404 (isolation)
     res = await client.get(f"/api/v1/route-briefs/{sample_brief_a.id}/status", headers=tenant_b_headers)
@@ -198,8 +206,23 @@ async def test_tenant_isolation_status_and_pdf(client, db_session, tenant_a_head
 
     # Complete the brief
     sample_brief_a.status = "completed"
+    sample_brief_a.brief_markdown = "# Route Brief: Shanghai to Los Angeles"
+    sample_brief_a.recommendation = "ship_now"
+    sample_brief_a.risk_level = "low"
     sample_brief_a.pdf_path = "test_dummy_path.pdf"
     await db_session.commit()
+
+    # Status check after completion returns populated fields
+    res_completed = await client.get(f"/api/v1/route-briefs/{sample_brief_a.id}/status", headers=tenant_a_headers)
+    assert res_completed.status_code == 200
+    comp_data = res_completed.json()
+    assert comp_data["status"] == "completed"
+    assert comp_data["brief_id"] == str(sample_brief_a.id)
+    assert comp_data["brief_markdown"] == "# Route Brief: Shanghai to Los Angeles"
+    assert comp_data["recommendation"] == "ship_now"
+    assert comp_data["risk_level"] == "low"
+    assert comp_data["error_message"] is None
+    assert comp_data["created_at"] is not None
 
     with open("test_dummy_path.pdf", "w") as f:
         f.write("dummy pdf")

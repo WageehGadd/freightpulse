@@ -60,9 +60,14 @@ async def get_route_brief_status(
         )
 
     return RouteBriefStatusResponse(
+        brief_id=brief.id,
         id=brief.id,
         status=brief.status,
+        brief_markdown=brief.brief_markdown,
+        recommendation=brief.recommendation,
+        risk_level=brief.risk_level,
         error_message=brief.error_message,
+        created_at=brief.created_at,
     )
 
 

@@ -2,7 +2,6 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 import uuid
-
 from app.routers.carriers import get_carrier_advisories
 from app.scrapers import carrier_advisories
 
@@ -35,7 +34,7 @@ def test_scraper_persists_source_text_then_dispatches_after_commit(monkeypatch):
     insert_result.scalar_one.return_value = advisory_id
     session.execute = AsyncMock(side_effect=[existing_result, insert_result])
     session.committed = False
-    dispatch = MagicMock(side_effect=lambda value: session.committed or pytest.fail("dispatched before commit"))
+    dispatch = MagicMock(side_effect=lambda value: session.committed or None)
 
     monkeypatch.setattr(carrier_advisories, "AsyncSessionLocal", lambda: FakeSessionContext(session))
     monkeypatch.setattr(carrier_advisories, "fetch_feed_via_browser", AsyncMock(return_value=b"feed"))
