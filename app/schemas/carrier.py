@@ -17,3 +17,14 @@ class CarrierAdvisoryResponse(BaseModel):
 
 class CarrierAdvisoriesListResponse(BaseModel):
     advisories: list[CarrierAdvisoryResponse]
+
+
+class CarrierItem(BaseModel):
+    name: str
+    code: str | None = None
+    full_name: str | None = None
+    advisories_count: int = 0
+
+
+class CarriersListResponse(BaseModel):
+    carriers: list[CarrierItem]

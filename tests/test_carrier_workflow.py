@@ -84,3 +84,59 @@ def test_carrier_api_returns_persisted_ai_fields():
     assert item.affected_lanes == ["Egypt-Europe"]
     assert item.source_url == "https://carrier.example/advisory"
     assert not hasattr(item, "raw_text")
+
+
+def test_get_carriers_empty():
+    from app.routers.carriers import get_carriers
+
+    db = MagicMock()
+    db.execute = AsyncMock(
+        return_value=SimpleNamespace(all=lambda: [])
+    )
+
+    response = asyncio.run(get_carriers(db=db))
+    assert response.carriers == []
+
+
+def test_get_carriers_returns_carrier_items_with_metadata():
+    from app.routers.carriers import get_carriers
+
+    db = MagicMock()
+    db.execute = AsyncMock(
+        return_value=SimpleNamespace(
+            all=lambda: [
+                ("CMA CGM", 3),
+                ("Maersk", 2),
+                ("MSC", 5),
+                ("CustomCarrier", 1),
+            ]
+        )
+    )
+
+    response = asyncio.run(get_carriers(db=db))
+    assert len(response.carriers) == 4
+
+    cma = response.carriers[0]
+    assert cma.name == "CMA CGM"
+    assert cma.code == "CMACGM"
+    assert cma.full_name == "CMA CGM Group"
+    assert cma.advisories_count == 3
+
+    maersk = response.carriers[1]
+    assert maersk.name == "Maersk"
+    assert maersk.code == "MAEU"
+    assert maersk.full_name == "A.P. Moller – Maersk"
+    assert maersk.advisories_count == 2
+
+    msc = response.carriers[2]
+    assert msc.name == "MSC"
+    assert msc.code == "MSCU"
+    assert msc.full_name == "Mediterranean Shipping Company"
+    assert msc.advisories_count == 5
+
+    custom = response.carriers[3]
+    assert custom.name == "CustomCarrier"
+    assert custom.code == "CUSTOMCARRIER"
+    assert custom.full_name is None
+    assert custom.advisories_count == 1
+

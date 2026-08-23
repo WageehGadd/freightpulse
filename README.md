@@ -81,6 +81,7 @@ Common Error Codes:
 | **Rates** | `POST` | `/api/v1/rates/outlook/{trend_id}` | ❌ Public | Trigger AI rate outlook job for a trend |
 | **Ports** | `GET` | `/api/v1/ports/congestion-map` | ❌ Public | Global port congestion map coordinates & status |
 | **Ports** | `GET` | `/api/v1/ports/{code}/congestion` | ❌ Public | Detailed congestion metrics for a specific port |
+| **Carriers** | `GET` | `/api/v1/carriers` | ❌ Public | List ocean carriers with advisory counts and metadata |
 | **Carriers** | `GET` | `/api/v1/carriers/advisories` | ❌ Public | List carrier advisories with filters |
 | **Forex** | `GET` | `/api/v1/exchange-rate/usd-egp` | ❌ Public | Cached USD to EGP foreign exchange rate |
 | **Bunker** | `GET` | `/api/v1/bunker/ifo380` | ❌ Public | Cached IFO380 bunker fuel prices by port |
@@ -341,7 +342,40 @@ Common Error Codes:
 
 ---
 
-### 5. Carrier Advisories
+### 5. Carriers & Carrier Advisories
+
+#### `GET /api/v1/carriers`
+- **Auth**: None (Public)
+- **Description**: Retrieve a list of tracked ocean carriers, their standardized carrier codes, full company names, and current advisory counts.
+- **cURL Example**:
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/carriers"
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "carriers": [
+      {
+        "name": "CMA CGM",
+        "code": "CMACGM",
+        "full_name": "CMA CGM Group",
+        "advisories_count": 2
+      },
+      {
+        "name": "Maersk",
+        "code": "MAEU",
+        "full_name": "A.P. Moller – Maersk",
+        "advisories_count": 2
+      },
+      {
+        "name": "MSC",
+        "code": "MSCU",
+        "full_name": "Mediterranean Shipping Company",
+        "advisories_count": 2
+      }
+    ]
+  }
+  ```
 
 #### `GET /api/v1/carriers/advisories`
 - **Auth**: None (Public)
@@ -372,6 +406,7 @@ Common Error Codes:
     ]
   }
   ```
+
 
 ---
 

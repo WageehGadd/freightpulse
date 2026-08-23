@@ -76,3 +76,26 @@ async def test_carrier_advisories_ordered_by_newest_first(client, db_session, au
     response = await client.get("/api/v1/carriers/advisories", headers=auth_headers)
     advisories = response.json()["advisories"]
     assert advisories[0]["title"] == "New"
+
+
+async def test_get_carriers_empty(client, auth_headers):
+    response = await client.get("/api/v1/carriers", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json() == {"carriers": []}
+
+
+async def test_get_carriers_returns_distinct_carriers(client, db_session, auth_headers):
+    await _seed_advisory(db_session, carrier="MSC")
+    await _seed_advisory(db_session, carrier="MSC")
+    await _seed_advisory(db_session, carrier="Maersk")
+
+    response = await client.get("/api/v1/carriers", headers=auth_headers)
+    assert response.status_code == 200
+    carriers = response.json()["carriers"]
+    assert len(carriers) == 2
+    assert carriers[0]["name"] == "Maersk"
+    assert carriers[0]["code"] == "MAEU"
+    assert carriers[0]["advisories_count"] == 1
+    assert carriers[1]["name"] == "MSC"
+    assert carriers[1]["code"] == "MSCU"
+    assert carriers[1]["advisories_count"] == 2

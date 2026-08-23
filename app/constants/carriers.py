@@ -1,0 +1,51 @@
+CARRIER_REFERENCE = {
+    "MSC": {
+        "name": "MSC",
+        "full_name": "Mediterranean Shipping Company",
+        "code": "MSCU",
+        "country": "Switzerland",
+        "website": "https://www.msc.com",
+    },
+    "Maersk": {
+        "name": "Maersk",
+        "full_name": "A.P. Moller – Maersk",
+        "code": "MAEU",
+        "country": "Denmark",
+        "website": "https://www.maersk.com",
+    },
+    "CMA CGM": {
+        "name": "CMA CGM",
+        "full_name": "CMA CGM Group",
+        "code": "CMACGM",
+        "country": "France",
+        "website": "https://www.cma-cgm.com",
+    },
+    "Hapag-Lloyd": {
+        "name": "Hapag-Lloyd",
+        "full_name": "Hapag-Lloyd AG",
+        "code": "HLCU",
+        "country": "Germany",
+        "website": "https://www.hapag-lloyd.com",
+    },
+    "COSCO": {
+        "name": "COSCO",
+        "full_name": "COSCO Shipping Lines",
+        "code": "COSU",
+        "country": "China",
+        "website": "https://lines.coscoshipping.com",
+    },
+    "Evergreen": {
+        "name": "Evergreen",
+        "full_name": "Evergreen Marine Corporation",
+        "code": "EGLV",
+        "country": "Taiwan",
+        "website": "https://www.evergreen-marine.com",
+    },
+    "ONE": {
+        "name": "ONE",
+        "full_name": "Ocean Network Express",
+        "code": "ONEY",
+        "country": "Japan",
+        "website": "https://www.one-line.com",
+    },
+}
