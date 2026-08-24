@@ -127,7 +127,7 @@ def test_health_check_endpoints_do_not_invoke_llm():
 
 
     try:
-        with patch("openai.resources.chat.completions.Completions.create") as mock_openai_create:
+        with patch("openai.resources.chat.completions.AsyncCompletions.create") as mock_openai_create:
             # 1. Test core health check
             res_core = client.get("/api/v1/health")
             assert res_core.status_code == 200
@@ -137,7 +137,7 @@ def test_health_check_endpoints_do_not_invoke_llm():
             assert res_ai.status_code == 200
             data = res_ai.json()
 
-            assert data["provider"] == "openai"
+            assert data["provider"] == "azure"
             assert data["model"] == settings.AI_MODEL
             assert "active_prompts" in data
             assert data["active_prompts"]["carrier_summarizer"] == "v1"

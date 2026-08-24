@@ -55,8 +55,8 @@ async def get_ai_health(
 
     return AIHealthResponse(
         status="healthy" if redis_status == "connected" else "degraded",
-        provider="openai",
-        model=getattr(settings, "AI_MODEL", "gpt-4o-mini"),
+        provider="azure",
+        model=getattr(settings, "AI_MODEL", "gpt-4.1-mini"),
         redis_status=redis_status,
         active_prompts={
             "carrier_summarizer": getattr(settings, "AI_CARRIER_SUMMARIZER_PROMPT_VERSION", "v1"),

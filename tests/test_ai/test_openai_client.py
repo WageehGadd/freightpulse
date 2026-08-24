@@ -13,7 +13,7 @@ from app.schemas.ai_outputs import RateOutlookOutput
 
 @pytest.fixture
 def mock_openai():
-    with patch("app.ai.openai_client.AsyncOpenAI") as mock:
+    with patch("app.ai.openai_client.AsyncAzureOpenAI") as mock:
         yield mock
 
 @pytest.fixture

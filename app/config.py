@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
     VESSELFINDER_API_KEY: str = ""
-    OPENAI_API_KEY: str = ""
+    AZURE_OPENAI_API_KEY: str = ""
+    AZURE_OPENAI_ENDPOINT: str = ""
+    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4.1-mini"
+    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
     EXCHANGE_RATE_API_KEY: str = ""
 
     # AI Prompt Versions
@@ -19,7 +22,7 @@ class Settings(BaseSettings):
     AI_ROUTE_BRIEF_PROMPT_VERSION: str = "v1"
 
     # AI Model Configuration
-    AI_MODEL: str = "gpt-4o-mini"
+    AI_MODEL: str = "gpt-4.1-mini"
     AI_TEMPERATURE: float = 0.3
     AI_MAX_TOKENS: int = 1000
 

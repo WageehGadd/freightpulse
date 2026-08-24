@@ -13,8 +13,8 @@ from app.ai.route_brief_generator import RouteBriefGenerator
 @pytest.mark.ai_live
 @pytest.mark.asyncio
 async def test_live_carrier_summarizer():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
     summarizer = CarrierSummarizer()
     result = await summarizer.summarize(
         carrier="Carrier A",
@@ -28,8 +28,8 @@ async def test_live_carrier_summarizer():
 @pytest.mark.ai_live
 @pytest.mark.asyncio
 async def test_live_rate_outlook():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
     narrator = RateOutlookNarrator()
     result = await narrator.narrate(
         lane="Shanghai-Rotterdam",
@@ -44,8 +44,8 @@ async def test_live_rate_outlook():
 @pytest.mark.ai_live
 @pytest.mark.asyncio
 async def test_live_route_brief():
-    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("Live AI tests are disabled or OPENAI_API_KEY is not set")
+    if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
+        pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
     generator = RouteBriefGenerator()
     result = await generator.generate_brief(
         origin="Shanghai",

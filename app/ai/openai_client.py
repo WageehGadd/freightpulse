@@ -6,7 +6,7 @@ import logging
 from typing import Any, Optional, TypeVar
 
 import openai
-from openai import AsyncOpenAI
+from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, ValidationError
 
 import time
@@ -34,9 +34,13 @@ class FreightPulseAIClient:
         max_tokens: Optional[int] = None,  # noqa: UP045
         timeout: float = 30.0,
     ):
-        # AsyncOpenAI will automatically fall back to os.environ.get("OPENAI_API_KEY")
-        self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
-        self.model = model or getattr(settings, "AI_MODEL", "gpt-4o-mini")
+        self.client = AsyncAzureOpenAI(
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            api_key=api_key or settings.AZURE_OPENAI_API_KEY,
+            api_version=settings.AZURE_OPENAI_API_VERSION,
+            timeout=timeout,
+        )
+        self.model = model or getattr(settings, "AI_MODEL", "gpt-4.1-mini")
         self.temperature = temperature if temperature is not None else getattr(settings, "AI_TEMPERATURE", 0.3)
         self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "AI_MAX_TOKENS", 1000)
 
@@ -81,6 +85,7 @@ class FreightPulseAIClient:
         effective_model = model or self.model
         effective_temperature = temperature if temperature is not None else self.temperature
         effective_max_tokens = max_tokens if max_tokens is not None else self.max_tokens
+        azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT
 
         # Pre-call budget reservation & rate limit check
         estimated_cost = BudgetGuard.estimate_request_cost(
@@ -115,7 +120,7 @@ class FreightPulseAIClient:
         while attempt <= retries:
             try:
                 response = await self.client.chat.completions.create(
-                    model=effective_model,
+                    model=azure_deployment,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
