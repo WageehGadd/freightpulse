@@ -69,9 +69,3 @@ class RouteBriefStatusResponse(BaseModel):
         from_attributes = True
 
 
-class RouteBriefStatusUpdate(BaseModel):
-    status: str
-    brief_markdown: Optional[str] = None
-    recommendation: Optional[str] = None
-    risk_level: Optional[str] = None
-    error_message: Optional[str] = None

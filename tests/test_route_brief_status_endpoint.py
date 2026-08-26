@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from pydantic import ValidationError
 from fastapi import status, HTTPException, BackgroundTasks
 
-from app.schemas.route_brief import RouteBriefStatusResponse, RouteBriefStatusUpdate
+from app.schemas.route_brief import RouteBriefStatusResponse, RouteBriefCreateRequest
 from app.models.route_brief import RouteBrief
 from app.models.user import User
 from app.routers.route_brief import (
     get_route_brief_status,
-    update_route_brief_status,
+    create_route_brief,
     trigger_route_brief_generation,
 )
 
@@ -238,44 +238,40 @@ async def test_get_route_brief_status_handler_unauthorized_other_tenant():
 
 
 @pytest.mark.asyncio
-async def test_update_route_brief_status():
+async def test_create_route_brief_completes_immediately():
     user_id = uuid.uuid4()
-    brief_id = uuid.uuid4()
     current_user = User(id=user_id, email="u@test.com", is_admin=False)
-
-    mock_brief = DummyModel(
-        id=brief_id,
-        user_id=user_id,
-        status="pending",
-        brief_markdown=None,
-        recommendation=None,
-        risk_level=None,
-        error_message=None,
-        created_at=datetime.now(timezone.utc),
+    request = RouteBriefCreateRequest(
+        origin="Shanghai",
+        destination="Rotterdam",
+        carrier="Maersk",
+        cargo_type="40ft",
     )
 
     mock_db = AsyncMock()
-    mock_db.get.return_value = mock_brief
+    mock_db.add = MagicMock()
 
-    update_payload = RouteBriefStatusUpdate(
-        status="completed",
-        brief_markdown="# Manual Completed Brief",
-        recommendation="ship_now",
-        risk_level="low",
-    )
+    async def mock_refresh(instance):
+        instance.status = "completed"
+        instance.brief_markdown = "# Generated Brief"
+        instance.recommendation = "ship_now"
+        instance.risk_level = "low"
+        instance.pdf_path = "storage/pdfs/dummy.pdf"
 
-    res = await update_route_brief_status(
-        brief_id=brief_id,
-        update_data=update_payload,
-        current_user=current_user,
-        db=mock_db,
-    )
+    mock_db.refresh.side_effect = mock_refresh
 
-    assert res.status == "completed"
-    assert res.brief_markdown == "# Manual Completed Brief"
-    assert res.recommendation == "ship_now"
-    assert res.risk_level == "low"
-    assert mock_db.commit.called
+    with patch("app.routers.route_brief.generate_route_brief_async", new_callable=AsyncMock) as mock_gen:
+        res = await create_route_brief(
+            request=request,
+            current_user=current_user,
+            db=mock_db,
+        )
+
+        assert mock_gen.called
+        assert res.status == "completed"
+        assert res.brief_markdown == "# Generated Brief"
+        assert res.recommendation == "ship_now"
+        assert res.risk_level == "low"
 
 
 @pytest.mark.asyncio

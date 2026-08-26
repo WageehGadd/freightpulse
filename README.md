@@ -476,7 +476,7 @@ Common Error Codes:
 
 #### `POST /api/v1/route-briefs`
 - **Auth**: 🔒 **Required** (`X-API-Key`)
-- **Description**: Submits a request for a comprehensive AI Route Brief analyzing rates, port delays, advisories, and risk factors. Generates a formatted PDF in the background.
+- **Description**: Submits a request for a comprehensive AI Route Brief analyzing rates, port delays, advisories, and risk factors. Generates the brief and formatted PDF immediately upon creation.
 - **Request Body**:
   ```json
   {
@@ -507,11 +507,11 @@ Common Error Codes:
     "destination": "EGPSD",
     "carrier": "MSC",
     "cargo_type": "40ft",
-    "status": "pending",
-    "brief_markdown": null,
-    "recommendation": null,
-    "risk_level": null,
-    "pdf_path": null,
+    "status": "completed",
+    "brief_markdown": "# Route Brief: Shanghai to Los Angeles\n\n## Overview\n...",
+    "recommendation": "ship_now",
+    "risk_level": "low",
+    "pdf_path": "storage/pdfs/route_brief_a9d5e381-e231-419b-a3d8-55a2c20a4421.pdf",
     "error_message": null,
     "created_at": "2026-08-20T23:56:00Z"
   }

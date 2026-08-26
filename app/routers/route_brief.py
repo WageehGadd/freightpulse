@@ -14,7 +14,6 @@ from app.schemas.route_brief import (
     RouteBriefCreateRequest,
     RouteBriefResponse,
     RouteBriefStatusResponse,
-    RouteBriefStatusUpdate,
 )
 from app.tasks.route_brief_generation import generate_route_brief, generate_route_brief_async
 
@@ -24,8 +23,6 @@ router = APIRouter(prefix="/route-briefs", tags=["Route Briefs"])
 @router.post("", response_model=RouteBriefResponse, status_code=status.HTTP_201_CREATED)
 async def create_route_brief(
     request: RouteBriefCreateRequest,
-    background_tasks: BackgroundTasks,
-    sync: bool = Query(False, description="If true, wait synchronously for brief and PDF generation"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -41,24 +38,11 @@ async def create_route_brief(
     await db.commit()
     await db.refresh(brief)
 
-    if sync:
-        try:
-            await generate_route_brief_async(str(brief.id))
-            await db.refresh(brief)
-        except Exception:
-            await db.refresh(brief)
-        return brief
-
-    # Trigger async Celery task, with automatic fallback to FastAPI BackgroundTasks
-    dispatched = False
     try:
-        generate_route_brief.delay(str(brief.id))
-        dispatched = True
+        await generate_route_brief_async(str(brief.id))
+        await db.refresh(brief)
     except Exception:
-        dispatched = False
-
-    if not dispatched:
-        background_tasks.add_task(generate_route_brief_async, str(brief.id))
+        await db.refresh(brief)
 
     return brief
 
@@ -102,45 +86,6 @@ async def trigger_route_brief_generation(
         background_tasks.add_task(generate_route_brief_async, str(brief.id))
 
     return brief
-
-
-@router.patch("/{brief_id}/status", response_model=RouteBriefStatusResponse)
-async def update_route_brief_status(
-    brief_id: UUID,
-    update_data: RouteBriefStatusUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    brief = await db.get(RouteBrief, brief_id)
-    if not brief or (brief.user_id != current_user.id and not current_user.is_admin):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Route brief not found",
-        )
-
-    brief.status = update_data.status
-    if update_data.brief_markdown is not None:
-        brief.brief_markdown = update_data.brief_markdown
-    if update_data.recommendation is not None:
-        brief.recommendation = update_data.recommendation
-    if update_data.risk_level is not None:
-        brief.risk_level = update_data.risk_level
-    if update_data.error_message is not None:
-        brief.error_message = update_data.error_message
-
-    await db.commit()
-    await db.refresh(brief)
-
-    return RouteBriefStatusResponse(
-        brief_id=brief.id,
-        id=brief.id,
-        status=brief.status,
-        brief_markdown=brief.brief_markdown,
-        recommendation=brief.recommendation,
-        risk_level=brief.risk_level,
-        error_message=brief.error_message,
-        created_at=brief.created_at,
-    )
 
 
 @router.get("/{brief_id}/status", response_model=RouteBriefStatusResponse)
