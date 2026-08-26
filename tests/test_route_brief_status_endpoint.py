@@ -2,15 +2,19 @@
 import pytest
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from pydantic import ValidationError
-from fastapi import status, HTTPException
+from fastapi import status, HTTPException, BackgroundTasks
 
-from app.schemas.route_brief import RouteBriefStatusResponse
+from app.schemas.route_brief import RouteBriefStatusResponse, RouteBriefStatusUpdate
 from app.models.route_brief import RouteBrief
 from app.models.user import User
-from app.routers.route_brief import get_route_brief_status
+from app.routers.route_brief import (
+    get_route_brief_status,
+    update_route_brief_status,
+    trigger_route_brief_generation,
+)
 
 
 class DummyModel:
@@ -231,3 +235,76 @@ async def test_get_route_brief_status_handler_unauthorized_other_tenant():
 
     assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
     assert exc_info.value.detail == "Route brief not found"
+
+
+@pytest.mark.asyncio
+async def test_update_route_brief_status():
+    user_id = uuid.uuid4()
+    brief_id = uuid.uuid4()
+    current_user = User(id=user_id, email="u@test.com", is_admin=False)
+
+    mock_brief = DummyModel(
+        id=brief_id,
+        user_id=user_id,
+        status="pending",
+        brief_markdown=None,
+        recommendation=None,
+        risk_level=None,
+        error_message=None,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    mock_db = AsyncMock()
+    mock_db.get.return_value = mock_brief
+
+    update_payload = RouteBriefStatusUpdate(
+        status="completed",
+        brief_markdown="# Manual Completed Brief",
+        recommendation="ship_now",
+        risk_level="low",
+    )
+
+    res = await update_route_brief_status(
+        brief_id=brief_id,
+        update_data=update_payload,
+        current_user=current_user,
+        db=mock_db,
+    )
+
+    assert res.status == "completed"
+    assert res.brief_markdown == "# Manual Completed Brief"
+    assert res.recommendation == "ship_now"
+    assert res.risk_level == "low"
+    assert mock_db.commit.called
+
+
+@pytest.mark.asyncio
+async def test_trigger_route_brief_generation_async():
+    user_id = uuid.uuid4()
+    brief_id = uuid.uuid4()
+    current_user = User(id=user_id, email="u@test.com", is_admin=False)
+
+    mock_brief = DummyModel(
+        id=brief_id,
+        user_id=user_id,
+        status="pending",
+        error_message="Old error",
+        created_at=datetime.now(timezone.utc),
+    )
+
+    mock_db = AsyncMock()
+    mock_db.get.return_value = mock_brief
+
+    bg_tasks = MagicMock(spec=BackgroundTasks)
+
+    with patch("app.routers.route_brief.generate_route_brief") as mock_celery:
+        mock_celery.delay.side_effect = Exception("Celery unreachable")
+        res = await trigger_route_brief_generation(
+            brief_id=brief_id,
+            background_tasks=bg_tasks,
+            sync=False,
+            current_user=current_user,
+            db=mock_db,
+        )
+        assert res.status == "generating"
+        bg_tasks.add_task.assert_called_once()
