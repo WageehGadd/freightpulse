@@ -2,7 +2,11 @@ import re
 from datetime import date, datetime, timezone
 
 import structlog
-from playwright.async_api import async_playwright
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    async_playwright = None
+
 from app.scrapers.base import BaseScraper
 
 logger = structlog.get_logger()
@@ -59,6 +63,10 @@ class SCFIScraper(BaseScraper):
     name = "scfi"
 
     async def scrape(self) -> dict:
+        if not async_playwright:
+            logger.warning("scfi_playwright_missing")
+            return {"records": [], "rows_upserted": 0}
+
         rows_data = []
 
         async with async_playwright() as p:

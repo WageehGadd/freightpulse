@@ -6,6 +6,8 @@ from tests.ai_evaluation.fake_ai_client import FakeFreightPulseAIClient
 from app.ai.carrier_summarizer import CarrierSummarizer
 from app.ai.rate_outlook_narrator import RateOutlookNarrator
 from app.ai.route_brief_generator import RouteBriefGenerator
+from app.ai.openai_client import FreightPulseAIClient
+from app.ai.translator import CarrierTranslator
 
 # This test is marked as "ai_live" and will be skipped unless the environment variable
 # FREIGHTPULSE_ENABLE_LIVE_AI=1 is set. It demonstrates how the real LLM would be invoked.
@@ -15,7 +17,9 @@ from app.ai.route_brief_generator import RouteBriefGenerator
 async def test_live_carrier_summarizer():
     if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
         pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
-    summarizer = CarrierSummarizer()
+    client = FreightPulseAIClient()
+    translator = CarrierTranslator()
+    summarizer = CarrierSummarizer(ai_client=client, translator=translator)
     result = await summarizer.summarize(
         carrier="Carrier A",
         title="Port Congestion Advisory",
@@ -30,7 +34,8 @@ async def test_live_carrier_summarizer():
 async def test_live_rate_outlook():
     if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
         pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
-    narrator = RateOutlookNarrator()
+    client = FreightPulseAIClient()
+    narrator = RateOutlookNarrator(ai_client=client)
     result = await narrator.narrate(
         lane="Shanghai-Rotterdam",
         current_rate="2200 USD on 2026-08-15",
@@ -46,7 +51,8 @@ async def test_live_rate_outlook():
 async def test_live_route_brief():
     if os.getenv("FREIGHTPULSE_ENABLE_LIVE_AI") != "1" or not os.getenv("AZURE_OPENAI_API_KEY"):
         pytest.skip("Live AI tests are disabled or AZURE_OPENAI_API_KEY is not set")
-    generator = RouteBriefGenerator()
+    client = FreightPulseAIClient()
+    generator = RouteBriefGenerator(ai_client=client)
     result = await generator.generate_brief(
         origin="Shanghai",
         destination="Rotterdam",

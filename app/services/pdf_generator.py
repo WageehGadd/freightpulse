@@ -27,9 +27,10 @@ def generate_route_brief_pdf(brief_id: str, markdown_content: str) -> str:
     pdf.set_font("helvetica", size=12)
 
     # fpdf2's write_html can parse basic HTML
+    from fpdf.errors import FPDFException
     try:
         pdf.write_html(html)
-    except Exception as e:
+    except FPDFException:
         # Fallback to plain text if HTML parsing fails
         pdf.set_font("helvetica", size=11)
         pdf.multi_cell(0, 5, text=markdown_content)

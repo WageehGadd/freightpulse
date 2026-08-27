@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # لو محتاجين Playwright، لازم نثبت متصفحاته كمان
-RUN playwright install --with-deps chromium
+# RUN playwright install chromium
 
 COPY . .
 

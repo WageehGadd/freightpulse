@@ -95,11 +95,13 @@ async def generate_route_brief_async(
             # Generate PDF
             try:
                 from app.services.pdf_generator import generate_route_brief_pdf
+                from fpdf.errors import FPDFException
                 pdf_path = generate_route_brief_pdf(str(parsed_id), output.brief_markdown)
                 brief.pdf_path = pdf_path
-            except Exception:
+            except FPDFException:
                 logger.exception("route_brief_pdf_generation_failed", extra={"brief_id": str(parsed_id)})
-                raise  # Re-raise to trigger rollback and mark as failed
+                # Do not raise. The PDF generation is non-critical, and we should still save the AI result.
+                brief.pdf_path = None
 
             brief.status = "completed"
             brief.error_message = None

@@ -119,7 +119,7 @@ class FreightPulseAIClient:
 
         while attempt <= retries:
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.beta.chat.completions.parse(
                     model=azure_deployment,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -127,7 +127,7 @@ class FreightPulseAIClient:
                     ],
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
-                    response_format={"type": "json_object"}
+                    response_format=output_schema
                 )
 
                 latency = time.time() - start_time
@@ -155,12 +155,10 @@ class FreightPulseAIClient:
                     actual_cost=actual_cost,
                 )
 
-                content = response.choices[0].message.content
-                if not content:
-                    raise AIValidationError("Received empty content from OpenAI")
+                if getattr(response.choices[0].message, "refusal", None):
+                    raise AIValidationError(f"Model refused: {response.choices[0].message.refusal}")
 
-                parsed_json = json.loads(content)
-                return output_schema.model_validate(parsed_json)
+                return response.choices[0].message.parsed
 
             except (openai.APITimeoutError, asyncio.TimeoutError) as e:
                 attempt += 1
@@ -178,7 +176,7 @@ class FreightPulseAIClient:
                     raise AITimeoutError(f"OpenAI API timed out after {retries} retries.") from e
                 await asyncio.sleep(2 ** attempt)
 
-            except (openai.APIError, openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError) as e:
+            except (openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError) as e:
                 attempt += 1
                 if attempt > retries:
                     latency = time.time() - start_time
