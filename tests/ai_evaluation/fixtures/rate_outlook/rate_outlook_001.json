@@ -1,0 +1,20 @@
+{
+  "id": "rate_outlook_001",
+  "version": 1,
+  "description": "Normal rate outlook with sufficient data",
+  "input": {
+    "lane": "US-EU",
+    "current_rate": "100",
+    "historical_context": "Stable",
+    "market_factors": "Low volatility"
+  },
+  "expected_output": {
+    "outlook_text": "The market for lane US-EU remains stable with slight upward trend.",
+    "recommendation": "book_now",
+    "confidence": 85
+  },
+  "criteria": {
+    "allowed_recommendations": ["book_now", "wait", "hedge"],
+    "confidence_range": [30, 100]
+  }
+}

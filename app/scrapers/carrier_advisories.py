@@ -1,8 +1,7 @@
+import feedparser
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
-import feedparser
-import structlog
 from playwright.async_api import async_playwright
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -10,6 +9,10 @@ from sqlalchemy.dialects.postgresql import insert
 from app.database import AsyncSessionLocal
 from app.models import CarrierAdvisory
 from app.scrapers.base import BaseScraper
+from app.tasks.ai_generation import summarize_advisory
+
+import structlog
+
 
 logger = structlog.get_logger()
 
@@ -73,6 +76,7 @@ class CarrierAdvisoryScraper(BaseScraper):
 
     async def scrape(self) -> dict:
         rows_upserted = 0
+        new_ids = []
 
         async with AsyncSessionLocal() as session:
             for carrier_name, feed_url in CARRIER_FEEDS.items():
@@ -132,23 +136,36 @@ class CarrierAdvisoryScraper(BaseScraper):
                     if existing.scalar_one_or_none() is not None:
                         continue
 
-                    stmt = insert(CarrierAdvisory).values(
-                        carrier=carrier_name,
-                        advisory_type=advisory_type,
-                        title=entry.title,
-                        raw_text=getattr(entry, "description", ""),
-                        summary=None,
-                        affected_lanes=None,
-                        effective_date=None,
-                        impact_severity=None,
-                        source_url=entry.link,
-                        published_at=published_at,
+                    stmt = (
+                        insert(CarrierAdvisory)
+                        .values(
+                            carrier=carrier_name,
+                            advisory_type=advisory_type,
+                            title=entry.title,
+                            raw_text=getattr(entry, "description", None),
+                            summary=None,
+                            impact_severity=None,
+                            affected_lanes=None,
+                            effective_date=None,
+                            source_url=entry.link,
+                            published_at=published_at,
+                        )
+                        .returning(CarrierAdvisory.id)
                     )
 
-                    await session.execute(stmt)
+                    res = await session.execute(stmt)
+                    new_id = res.scalar_one()
+                    new_ids.append(new_id)
                     rows_upserted += 1
 
             await session.commit()
+
+        # Dispatch AI summarization tasks after commit
+        for adv_id in new_ids:
+            try:
+                summarize_advisory.delay(str(adv_id))
+            except Exception as e:
+                logger.warning("summarize_advisory_dispatch_failed", advisory_id=str(adv_id), error=str(e))
 
         logger.info(
             "carrier_advisories_updated",
@@ -156,4 +173,3 @@ class CarrierAdvisoryScraper(BaseScraper):
         )
 
         return {"rows_upserted": rows_upserted}
-

@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from uuid import UUID
 from pydantic import BaseModel
 
 
@@ -15,11 +15,14 @@ class PortCongestionResponse(BaseModel):
 
 
 class PortMapEntry(BaseModel):
+    port_id: UUID
     port_code: str
     port_name: str
+    country: str | None
     latitude: float | None
     longitude: float | None
     congestion_index: float | None
+    vessels_waiting: int | None
     severity: str | None
 
 

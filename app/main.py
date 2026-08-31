@@ -3,8 +3,22 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.middlewares.api_key import ApiKeyMiddleware
-from app.routers import bunker, carriers, dashboard, exchange_rate, health, ports, rates
+
+from app.routers import (
+    ai_admin,
+    alerts,
+    bunker,
+    carriers,
+    dashboard,
+    exchange_rate,
+    health,
+    ports,
+    rates,
+    route_brief,
+    websocket,
+)
+
+from app.config import settings
 
 logger = structlog.get_logger()
 
@@ -16,13 +30,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.add_middleware(ApiKeyMiddleware)
+
+
 
 
 @app.exception_handler(HTTPException)
@@ -52,3 +67,8 @@ app.include_router(ports.router, prefix="/api/v1", tags=["Ports"])
 app.include_router(carriers.router, prefix="/api/v1", tags=["Carriers"])
 app.include_router(exchange_rate.router, prefix="/api/v1", tags=["Exchange Rate"])
 app.include_router(bunker.router, prefix="/api/v1", tags=["Bunker"])
+app.include_router(route_brief.router, prefix="/api/v1", tags=["Route Briefs"])
+app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
+app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
+app.include_router(websocket.router, prefix="/api/v1", tags=["WebSockets"])
+app.include_router(websocket.router, tags=["WebSockets"])

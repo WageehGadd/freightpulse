@@ -8,12 +8,24 @@ class RateHistoryPoint(BaseModel):
     rate_usd: float
 
 
+import uuid
+
 class TrendInfo(BaseModel):
+    id: uuid.UUID | None = None
     direction: str | None  # rising | stable | falling
     slope_per_week: float | None
     change_7d_pct: float | None
     change_30d_pct: float | None
     anomaly_flag: bool = False
+    outlook_text: str | None = None
+    recommendation: str | None = None
+    confidence: int | None = None
+    status: str = "none"
+    error_message: str | None = None
+
+class RateOutlookCreateResponse(BaseModel):
+    trend_id: str
+    status: str
 
 
 class LaneAllResponse(BaseModel):

@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 from dotenv import load_dotenv
 
@@ -16,13 +14,6 @@ from sqlalchemy.ext.asyncio import (
 from app.database import Base
 from app.config import settings
 from app.main import app
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="function")
@@ -57,6 +48,13 @@ async def client(db_session):
     Create an HTTP client that communicates directly with the FastAPI app
     without requiring a running Uvicorn server.
     """
+    from app.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
     transport = ASGITransport(app=app)
 
     async with AsyncClient(
@@ -65,7 +63,61 @@ async def client(db_session):
     ) as ac:
         yield ac
 
+    app.dependency_overrides.clear()
 
-@pytest.fixture
-def auth_headers():
-    return {"X-API-Key": settings.API_KEY}
+
+from app.models.user import User
+from app.models.api_key import ApiKey
+from app.auth.security import hash_api_key
+
+@pytest.fixture(scope="function")
+async def test_user(db_session):
+    user = User(email="test@freightpulse.ai")
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+@pytest.fixture(scope="function")
+async def auth_headers(db_session, test_user):
+    plaintext_key = "fp_live_testkey123"
+    api_key = ApiKey(
+        user_id=test_user.id,
+        key_hash=hash_api_key(plaintext_key),
+        key_prefix="fp_live_test",
+        name="Test Key"
+    )
+    db_session.add(api_key)
+    await db_session.commit()
+    return {"X-API-Key": plaintext_key}
+
+
+from sqlalchemy import create_engine as create_sync_engine
+from sqlalchemy.orm import sessionmaker as sync_sessionmaker
+from sqlalchemy.pool import StaticPool
+from ai.database import Base as AIBase
+import ai.database
+import ai.tasks
+
+
+@pytest.fixture(scope="function")
+def test_session_factory(monkeypatch):
+    """
+    Provide an isolated synchronous database session factory for AI/Celery integration tests.
+    Patches ai.database.SessionLocal and ai.tasks.SessionLocal to use an isolated in-memory SQLite engine.
+    """
+    engine = create_sync_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    AIBase.metadata.create_all(bind=engine)
+    TestingSessionLocal = sync_sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    monkeypatch.setattr(ai.database, "engine", engine)
+    monkeypatch.setattr(ai.database, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(ai.tasks, "SessionLocal", TestingSessionLocal)
+
+    yield TestingSessionLocal
+
+    AIBase.metadata.drop_all(bind=engine)
+    engine.dispose()

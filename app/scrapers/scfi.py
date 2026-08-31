@@ -1,13 +1,15 @@
 import re
-from datetime import date, datetime, timezone
+from datetime import date
 
-import structlog
 from playwright.async_api import async_playwright
 from sqlalchemy.dialects.postgresql import insert
 
 from app.database import AsyncSessionLocal
 from app.models import FreightRate
 from app.scrapers.base import BaseScraper
+
+import structlog
+
 
 logger = structlog.get_logger()
 
@@ -142,7 +144,7 @@ class SCFIScraper(BaseScraper):
             logger.warning("scfi_no_rows_parsed")
             return {"rows_upserted": 0}
 
-        rate_date = datetime.now(timezone.utc).date()
+        rate_date = date.today()
         rows_upserted = 0
 
         async with AsyncSessionLocal() as session:

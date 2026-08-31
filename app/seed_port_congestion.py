@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from app.database import AsyncSessionLocal
 from app.models import PortCongestion
 
-# MOCK DATA - Official sources such as portauthority.gov.eg and 
-# the DP World newsroom either do not provide structured congestion 
+# MOCK DATA - Official sources such as portauthority.gov.eg and
+# the DP World newsroom either do not provide structured congestion
 # data or do not have publicly available data suitable for scraping.
 
 SAMPLE_CONGESTION = [

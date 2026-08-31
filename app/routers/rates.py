@@ -1,4 +1,6 @@
+import logging
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -11,11 +13,16 @@ from app.schemas.rate import (
     LaneDetailResponse,
     RateCompareResponse,
     RateHistoryPoint,
+    RateOutlookCreateResponse,
     RatesAllResponse,
     TrendInfo,
 )
+from app.tasks.rate_outlook_generation import generate_rate_outlook
 
-router = APIRouter()
+from app.auth.rate_limit import RateLimiter
+
+logger = logging.getLogger(__name__)
+router = APIRouter(dependencies=[Depends(RateLimiter())])
 
 
 @router.get("/rates/all", response_model=RatesAllResponse)
@@ -151,10 +158,40 @@ async def get_lane_rate(
         current_rate=float(latest.rate_usd),
         history=[RateHistoryPoint(date=r.rate_date, rate_usd=float(r.rate_usd)) for r in rates],
         trend=TrendInfo(
+            id=trend_row.id if trend_row else None,
             direction=trend_row.trend if trend_row else None,
             slope_per_week=trend_row.slope_per_week if trend_row else None,
             change_7d_pct=trend_row.change_7d_pct if trend_row else None,
             change_30d_pct=trend_row.change_30d_pct if trend_row else None,
             anomaly_flag=trend_row.anomaly_flag if trend_row else False,
+            outlook_text=trend_row.outlook_text if trend_row else None,
+            recommendation=trend_row.recommendation if trend_row else None,
+            confidence=trend_row.confidence if trend_row else None,
+            status=trend_row.status if trend_row else "none",
+            error_message=trend_row.error_message if trend_row else None,
         ),
     )
+
+
+@router.post("/rates/trends/{trend_id}/outlook", response_model=RateOutlookCreateResponse, status_code=202)
+async def generate_rate_outlook_endpoint(
+    trend_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    trend = await db.get(RateTrend, trend_id)
+    if not trend:
+        raise HTTPException(status_code=404, detail="Rate trend not found")
+
+    trend.status = "pending"
+    trend.error_message = None
+    await db.commit()
+
+    try:
+        generate_rate_outlook.delay(str(trend.id))
+    except Exception:
+        logger.exception("rate_outlook_enqueue_failed", extra={"trend_id": str(trend.id)})
+        trend.status = "failed"
+        trend.error_message = "Rate outlook could not be queued. Please try again later."
+        await db.commit()
+
+    return RateOutlookCreateResponse(trend_id=str(trend.id), status=trend.status)

@@ -12,6 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-freightpulse} -d ${POSTGRES_DB:-freightpulse_db}"]
       interval: 5s
@@ -48,7 +49,9 @@ services:
   celery_worker:
     build: .
     container_name: freightpulse_celery_worker
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery_app worker --concurrency=4 --loglevel=info
+    environment:
+      - IS_CELERY=1
     volumes:
       - .:/app
     env_file:

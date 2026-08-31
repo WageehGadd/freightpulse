@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Integer, Numeric, String, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Index, Integer, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,4 +25,7 @@ class FreightRate(Base):
 
     __table_args__ = (
         UniqueConstraint("source", "trade_lane", "container_type", "rate_date", name="uq_freight_rate"),
+        Index("idx_rates_date", "rate_date"),
+        Index("idx_rates_lane", "trade_lane", "rate_date"),
+        Index("idx_rates_source", "source", "rate_date"),
     )
