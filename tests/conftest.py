@@ -48,6 +48,13 @@ async def client(db_session):
     Create an HTTP client that communicates directly with the FastAPI app
     without requiring a running Uvicorn server.
     """
+    from app.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
     transport = ASGITransport(app=app)
 
     async with AsyncClient(
@@ -55,6 +62,8 @@ async def client(db_session):
         base_url="http://test",
     ) as ac:
         yield ac
+
+    app.dependency_overrides.clear()
 
 
 from app.models.user import User

@@ -101,7 +101,7 @@ class ConnectionManager:
                 async with AsyncSessionLocal() as session:
                     stmt = select(ApiKey).where(
                         ApiKey.key_hash == key_hash,
-                        ApiKey.revoked_at.is_(None),
+                        ApiKey.is_active == True,
                     )
                     record = (await session.execute(stmt)).scalar_one_or_none()
                     if record:

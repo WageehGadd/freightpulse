@@ -64,10 +64,12 @@ async def test_carrier_advisories_filter_by_affected_lane(client, db_session, au
 async def test_carrier_advisories_ordered_by_newest_first(client, db_session, auth_headers):
     old = CarrierAdvisory(
         carrier="MSC", advisory_type="surcharge", title="Old",
+        raw_text="Old text", summary="Old summary",
         published_at=datetime.utcnow() - timedelta(days=5),
     )
     new = CarrierAdvisory(
         carrier="MSC", advisory_type="surcharge", title="New",
+        raw_text="New text", summary="New summary",
         published_at=datetime.utcnow(),
     )
     db_session.add_all([old, new])
@@ -93,9 +95,9 @@ async def test_get_carriers_returns_distinct_carriers(client, db_session, auth_h
     assert response.status_code == 200
     carriers = response.json()["carriers"]
     assert len(carriers) == 2
-    assert carriers[0]["name"] == "Maersk"
-    assert carriers[0]["code"] == "MAEU"
-    assert carriers[0]["advisories_count"] == 1
-    assert carriers[1]["name"] == "MSC"
-    assert carriers[1]["code"] == "MSCU"
-    assert carriers[1]["advisories_count"] == 2
+    assert carriers[0]["name"] == "MSC"
+    assert carriers[0]["code"] == "MSCU"
+    assert carriers[0]["advisories_count"] == 2
+    assert carriers[1]["name"] == "Maersk"
+    assert carriers[1]["code"] == "MAEU"
+    assert carriers[1]["advisories_count"] == 1

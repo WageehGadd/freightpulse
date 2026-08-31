@@ -15,6 +15,7 @@ from app.routers import (
     ports,
     rates,
     route_brief,
+    websocket,
 )
 
 from app.config import settings
@@ -69,3 +70,5 @@ app.include_router(bunker.router, prefix="/api/v1", tags=["Bunker"])
 app.include_router(route_brief.router, prefix="/api/v1", tags=["Route Briefs"])
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
+app.include_router(websocket.router, prefix="/api/v1", tags=["WebSockets"])
+app.include_router(websocket.router, tags=["WebSockets"])

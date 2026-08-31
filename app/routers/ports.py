@@ -1,18 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.constants.ports import PORT_REFERENCE
 from app.database import get_db
 from app.models import PortCongestion
+from app.constants.ports import PORT_REFERENCE
 from app.schemas.port import (
-    PortCongestionMapResponse,
     PortCongestionResponse,
+    PortCongestionMapResponse,
     PortMapEntry,
 )
-from app.auth.rate_limit import RateLimiter
 
-router = APIRouter(dependencies=[Depends(RateLimiter())])
+router = APIRouter()
 
 
 @router.get("/ports/congestion-map", response_model=PortCongestionMapResponse)
@@ -37,11 +35,14 @@ async def get_congestion_map(db: AsyncSession = Depends(get_db)):
     return PortCongestionMapResponse(
         ports=[
             PortMapEntry(
+                port_id=p.id,
                 port_code=p.port_code,
                 port_name=p.port_name,
+                country=PORT_REFERENCE.get(p.port_code, {}).get("country"),
                 latitude=PORT_REFERENCE.get(p.port_code, {}).get("latitude"),
                 longitude=PORT_REFERENCE.get(p.port_code, {}).get("longitude"),
                 congestion_index=p.congestion_index,
+                vessels_waiting=p.vessels_waiting,
                 severity=p.severity,
             )
             for p in ports
