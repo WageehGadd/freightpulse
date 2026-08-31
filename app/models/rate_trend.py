@@ -20,6 +20,7 @@ class RateTrend(Base):
     change_30d_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     trend: Mapped[str | None] = mapped_column(String, nullable=True)  # rising|stable|falling
     slope_per_week: Mapped[float | None] = mapped_column(Float, nullable=True)
+    r_squared: Mapped[float | None] = mapped_column(Float, nullable=True)
     anomaly_flag: Mapped[bool] = mapped_column(Boolean, default=False)
 
     outlook_text: Mapped[str | None] = mapped_column(String, nullable=True)
