@@ -33,4 +33,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.orchestration.trigger_daily_pipeline",
         "schedule": crontab(hour=2, minute=0),
     },
+    "compute-rate-trends": {
+        "task": "app.tasks.trend_computation.compute_rate_trends",
+        "schedule": crontab(hour=10, minute=0),
+    },
+    "detect-rate-anomalies": {
+        "task": "app.tasks.alert_evaluation.evaluate_rate_alerts",
+        "schedule": crontab(hour=11, minute=0),
+    },
 }
