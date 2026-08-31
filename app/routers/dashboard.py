@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from app.schemas.dashboard import (
     DashboardAdvisorySummary,
     DashboardLaneSummary,
     DashboardPortSummary,
+    DashboardRateTrendPoint,
     DashboardResponse,
 )
 from app.models.user import User
@@ -40,6 +42,20 @@ async def get_dashboard(
         & (FreightRate.rate_date == latest_dates_subq.c.max_date),
     )
     latest_rates = (await db.execute(lanes_stmt)).scalars().all()
+
+    # Daily average across all tracked rates for the chart on the dashboard.
+    # The interval includes today and the previous 29 calendar days.
+    trend_cutoff = date.today() - timedelta(days=29)
+    rate_trend_stmt = (
+        select(
+            FreightRate.rate_date,
+            func.avg(FreightRate.rate_usd).label("avg_rate_usd"),
+        )
+        .where(FreightRate.rate_date >= trend_cutoff)
+        .group_by(FreightRate.rate_date)
+        .order_by(FreightRate.rate_date.asc())
+    )
+    rate_trend_rows = (await db.execute(rate_trend_stmt)).all()
 
     lanes_summary = []
     seen_lanes = set()
@@ -92,6 +108,13 @@ async def get_dashboard(
     return DashboardResponse(
         tracked_lanes_count=len(seen_lanes),
         lanes_summary=lanes_summary,
+        rate_trend_30d=[
+            DashboardRateTrendPoint(
+                date=row.rate_date,
+                avg_rate_usd=float(row.avg_rate_usd),
+            )
+            for row in rate_trend_rows
+        ],
         port_congestion_overview=[
             DashboardPortSummary(
                 port_code=p.port_code,
