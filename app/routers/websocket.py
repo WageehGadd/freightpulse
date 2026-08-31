@@ -28,7 +28,7 @@ async def alerts_websocket(websocket: WebSocket, user_id: str):
     Subscribes the client to user-specific alerts and network-wide broadcast alerts.
     Supports authentication via 'X-API-Key' header or query parameter '?api_key=...'.
     """
-    is_authenticated = await manager.verify_auth(websocket)
+    is_authenticated = await manager.verify_auth(websocket, user_id)
     if not is_authenticated:
         logger.warning("websocket_auth_failed", user_id=user_id)
         await websocket.close(code=1008)  # 1008 = Policy Violation / Unauthorized

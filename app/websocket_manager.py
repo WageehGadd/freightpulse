@@ -70,12 +70,12 @@ class ConnectionManager:
             delivered += await self.broadcast_to_user(user_id, message)
         return delivered
 
-    async def verify_auth(self, websocket: WebSocket) -> bool:
+    async def verify_auth(self, websocket: WebSocket, requested_user_id: str, db_session=None) -> bool:
         """
         Authenticate WebSocket connection via:
         1. X-API-Key header
         2. api_key or token query parameters (for browser WebSocket clients)
-        3. Master key comparison or valid active key
+        3. Master key comparison or valid active key belonging to requested_user_id
         """
         api_key = (
             websocket.headers.get("X-API-Key")
@@ -92,20 +92,32 @@ class ConnectionManager:
         # If an API key was supplied, also verify against hashed keys in database if needed
         if api_key:
             from app.auth.security import hash_api_key
-            from app.database import AsyncSessionLocal
             from app.models.api_key import ApiKey
             from sqlalchemy import select
+            import uuid
+
+            try:
+                target_user_uuid = uuid.UUID(requested_user_id)
+            except ValueError:
+                logger.warning("websocket_auth_invalid_uuid", user_id=requested_user_id)
+                return False
 
             try:
                 key_hash = hash_api_key(api_key)
-                async with AsyncSessionLocal() as session:
-                    stmt = select(ApiKey).where(
-                        ApiKey.key_hash == key_hash,
-                        ApiKey.is_active == True,
-                    )
-                    record = (await session.execute(stmt)).scalar_one_or_none()
-                    if record:
-                        return True
+                stmt = select(ApiKey).where(
+                    ApiKey.key_hash == key_hash,
+                    ApiKey.is_active == True,
+                )
+                
+                if db_session:
+                    record = (await db_session.execute(stmt)).scalar_one_or_none()
+                else:
+                    from app.database import AsyncSessionLocal
+                    async with AsyncSessionLocal() as session:
+                        record = (await session.execute(stmt)).scalar_one_or_none()
+                        
+                if record and record.user_id == target_user_uuid:
+                    return True
             except Exception as exc:
                 logger.warning("websocket_auth_db_check_failed", error=str(exc))
 

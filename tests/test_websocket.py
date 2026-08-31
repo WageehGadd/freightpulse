@@ -20,6 +20,64 @@ def test_websocket_auth_rejection():
             pass
 
 
+class MockWebSocketForAuth:
+    def __init__(self, headers=None, query_params=None):
+        self.headers = headers or {}
+        self.query_params = query_params or {}
+
+
+@pytest.mark.asyncio
+async def test_ws_security_valid_owner(db_session, test_user, auth_headers, monkeypatch):
+    """TEST 1 — valid owner: User A API key + User A user_id succeeds."""
+    monkeypatch.setattr(settings, "API_KEY", "dummy_master_key")
+    ws = MockWebSocketForAuth(headers=auth_headers)
+    is_auth = await manager.verify_auth(ws, str(test_user.id), db_session)
+    assert is_auth is True
+
+
+@pytest.mark.asyncio
+async def test_ws_security_cross_user_attack(db_session, test_user, auth_headers, monkeypatch):
+    """TEST 2 — cross-user attack: User A API key + User B user_id is rejected."""
+    monkeypatch.setattr(settings, "API_KEY", "dummy_master_key")
+    ws = MockWebSocketForAuth(headers=auth_headers)
+    import uuid
+    other_user_id = str(uuid.uuid4())
+    is_auth = await manager.verify_auth(ws, other_user_id, db_session)
+    assert is_auth is False
+
+
+@pytest.mark.asyncio
+async def test_ws_security_invalid_api_key(db_session, test_user, monkeypatch):
+    """TEST 3 — invalid API key is rejected."""
+    monkeypatch.setattr(settings, "API_KEY", "dummy_master_key")
+    ws = MockWebSocketForAuth(headers={"X-API-Key": "invalid_key"})
+    is_auth = await manager.verify_auth(ws, str(test_user.id), db_session)
+    assert is_auth is False
+
+
+@pytest.mark.asyncio
+async def test_ws_security_inactive_api_key(db_session, test_user, auth_headers, monkeypatch):
+    """TEST 4 — inactive/revoked API key is rejected."""
+    monkeypatch.setattr(settings, "API_KEY", "dummy_master_key")
+    
+    from sqlalchemy import update
+    from app.models.api_key import ApiKey
+    await db_session.execute(update(ApiKey).where(ApiKey.user_id == test_user.id).values(is_active=False))
+    await db_session.commit()
+
+    ws = MockWebSocketForAuth(headers=auth_headers)
+    is_auth = await manager.verify_auth(ws, str(test_user.id), db_session)
+    assert is_auth is False
+
+def test_websocket_auth_rejection():
+    """Unauthenticated client should be rejected with 1008 code."""
+    client = TestClient(app)
+    # If API_KEY is set and wrong key is sent, connection should close with 1008
+    with pytest.raises(Exception):
+        with client.websocket_connect("/api/v1/ws/alerts/user_test_1", headers={"X-API-Key": "wrong_key"}):
+            pass
+
+
 def test_websocket_connect_with_header():
     """Client with valid X-API-Key header can connect and send ping."""
     client = TestClient(app)
