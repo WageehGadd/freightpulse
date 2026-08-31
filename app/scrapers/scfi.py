@@ -1,13 +1,15 @@
 import re
-from datetime import date, datetime, timezone
+from datetime import date
+
+from playwright.async_api import async_playwright
+from sqlalchemy.dialects.postgresql import insert
+
+from app.database import AsyncSessionLocal
+from app.models import FreightRate
+from app.scrapers.base import BaseScraper
 
 import structlog
-try:
-    from playwright.async_api import async_playwright
-except ImportError:
-    async_playwright = None
 
-from app.scrapers.base import BaseScraper
 
 logger = structlog.get_logger()
 
@@ -63,10 +65,6 @@ class SCFIScraper(BaseScraper):
     name = "scfi"
 
     async def scrape(self) -> dict:
-        if not async_playwright:
-            logger.warning("scfi_playwright_missing")
-            return {"records": [], "rows_upserted": 0}
-
         rows_data = []
 
         async with async_playwright() as p:
@@ -144,28 +142,45 @@ class SCFIScraper(BaseScraper):
 
         if not rows_data:
             logger.warning("scfi_no_rows_parsed")
-            return {"records": [], "rows_upserted": 0}
+            return {"rows_upserted": 0}
 
-        rate_date = datetime.now(timezone.utc).date()
-        valid_records = []
+        rate_date = date.today()
+        rows_upserted = 0
 
-        for row in rows_data:
-            if not await self.validate_rate(row["rate_usd"], row["trade_lane"]):
-                continue
+        async with AsyncSessionLocal() as session:
+            for row in rows_data:
+                if not await self.validate_rate(
+                    row["rate_usd"],
+                    row["trade_lane"],
+                ):
+                    continue
 
-            valid_records.append(
-                {
-                    "source": "SCFI",
-                    "trade_lane": row["trade_lane"],
-                    "origin_port": "Shanghai",
-                    "dest_region": row["dest_region"],
-                    "container_type": row["container_type"],
-                    "rate_usd": row["rate_usd"],
-                    "rate_date": rate_date,
-                    "week_number": rate_date.isocalendar()[1],
-                    "source_url": SCFI_URL,
-                }
-            )
+                stmt = insert(FreightRate).values(
+                    source="SCFI",
+                    trade_lane=row["trade_lane"],
+                    origin_port="Shanghai",
+                    dest_region=row["dest_region"],
+                    container_type=row["container_type"],
+                    rate_usd=row["rate_usd"],
+                    rate_date=rate_date,
+                    week_number=rate_date.isocalendar()[1],
+                    source_url=SCFI_URL,
+                )
 
-        return {"records": valid_records, "rows_upserted": len(valid_records)}
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=[
+                        "source",
+                        "trade_lane",
+                        "container_type",
+                        "rate_date",
+                    ],
+                    set_={"rate_usd": row["rate_usd"]},
+                )
+
+                await session.execute(stmt)
+                rows_upserted += 1
+
+            await session.commit()
+
+        return {"rows_upserted": rows_upserted}
 

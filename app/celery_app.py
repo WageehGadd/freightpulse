@@ -9,6 +9,8 @@ celery_app = Celery(
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     include=[
+        "app.tasks.scraping",
+        "app.tasks.analysis",
         "app.tasks.ai_generation",
         "app.tasks.route_brief_generation",
         "app.tasks.rate_outlook_generation",
