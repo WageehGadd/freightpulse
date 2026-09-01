@@ -3,7 +3,7 @@ import secrets
 import structlog
 from uuid import UUID
 
-from app.database import async_session_maker
+from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.api_key import ApiKey
 from app.auth.security import hash_api_key
@@ -11,7 +11,7 @@ from app.auth.security import hash_api_key
 logger = structlog.get_logger()
 
 async def create_api_key(email: str, name: str):
-    async with async_session_maker() as session:
+    async with AsyncSessionLocal() as session:
         # 1. Find user or create if they don't exist
         from sqlalchemy import select
         result = await session.execute(select(User).where(User.email == email))
