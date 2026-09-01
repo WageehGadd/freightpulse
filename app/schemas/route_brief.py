@@ -20,6 +20,7 @@ class RouteBriefResponse(BaseModel):
     id: str
     origin: str
     destination: str
+    carrier: str | None
     cargo_type: str
     status: Literal["pending", "generating", "completed", "failed"]
     brief_markdown: str | None
@@ -27,3 +28,4 @@ class RouteBriefResponse(BaseModel):
     risk_level: str | None
     error_message: str | None
     created_at: datetime | None
+    pdf_available: bool

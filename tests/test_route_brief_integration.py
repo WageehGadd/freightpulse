@@ -231,3 +231,57 @@ async def test_invalid_route_brief_id(client, tenant_a_headers):
     invalid_id = uuid.uuid4()
     res = await client.get(f"/api/v1/route-briefs/{invalid_id}/status", headers=tenant_a_headers)
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_route_brief_contract_carrier_and_pdf_available(client, db_session, tenant_a_headers):
+    # 1. POST route brief and verify carrier is persisted
+    create_res = await client.post("/api/v1/route-briefs", json={
+        "origin": "Shanghai",
+        "destination": "LA",
+        "carrier": "Evergreen",
+        "cargo_type": "40ft"
+    }, headers=tenant_a_headers)
+    assert create_res.status_code == 202
+    brief_id = create_res.json()["id"]
+
+    # 2. GET route brief (Pending state)
+    res = await client.get(f"/api/v1/route-briefs/{brief_id}", headers=tenant_a_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["carrier"] == "Evergreen"
+    assert data["pdf_available"] is False
+    assert "pdf_path" not in data
+
+    # 3. Simulate Generating state
+    from sqlalchemy import select
+    brief = await db_session.scalar(select(RouteBrief).where(RouteBrief.id == uuid.UUID(brief_id)))
+    brief.status = "generating"
+    await db_session.commit()
+
+    res = await client.get(f"/api/v1/route-briefs/{brief_id}", headers=tenant_a_headers)
+    assert res.json()["pdf_available"] is False
+
+    # 4. Simulate Failed state
+    brief.status = "failed"
+    await db_session.commit()
+
+    res = await client.get(f"/api/v1/route-briefs/{brief_id}", headers=tenant_a_headers)
+    assert res.json()["pdf_available"] is False
+
+    # 5. Simulate Completed but missing file
+    brief.status = "completed"
+    brief.pdf_path = "test_dummy_missing.pdf"
+    await db_session.commit()
+
+    res = await client.get(f"/api/v1/route-briefs/{brief_id}", headers=tenant_a_headers)
+    assert res.json()["pdf_available"] is False
+
+    # 6. Simulate Completed with actual file
+    with open("test_dummy_missing.pdf", "w") as f:
+        f.write("dummy pdf")
+    
+    res = await client.get(f"/api/v1/route-briefs/{brief_id}", headers=tenant_a_headers)
+    assert res.json()["pdf_available"] is True
+
+    os.remove("test_dummy_missing.pdf")
