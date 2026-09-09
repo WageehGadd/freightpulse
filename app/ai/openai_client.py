@@ -25,6 +25,22 @@ class AITimeoutError(Exception):
 class AIValidationError(Exception):
     pass
 
+def normalize_azure_endpoint(endpoint: str) -> str:
+    """Normalize Azure OpenAI endpoint URL to resource root.
+
+    Strips trailing '/openai/v1', '/openai', and trailing slashes so AsyncAzureOpenAI
+    receives the expected resource host (e.g. https://<resource>.openai.azure.com).
+    """
+    if not endpoint:
+        return ""
+    ep = endpoint.strip().rstrip("/")
+    if ep.endswith("/openai/v1"):
+        ep = ep[:-len("/openai/v1")]
+    elif ep.endswith("/openai"):
+        ep = ep[:-len("/openai")]
+    return ep.rstrip("/")
+
+
 class FreightPulseAIClient:
     def __init__(
         self,
@@ -34,18 +50,19 @@ class FreightPulseAIClient:
         max_tokens: Optional[int] = None,  # noqa: UP045
         timeout: float = 30.0,
     ):
+        normalized_endpoint = normalize_azure_endpoint(settings.AZURE_OPENAI_ENDPOINT)
         self.client = AsyncAzureOpenAI(
-            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            azure_endpoint=normalized_endpoint,
             api_key=api_key or settings.AZURE_OPENAI_API_KEY,
             api_version=settings.AZURE_OPENAI_API_VERSION,
             timeout=timeout,
         )
-        self.model = model or getattr(settings, "AI_MODEL", "gpt-4.1-mini")
-        self.temperature = temperature if temperature is not None else getattr(settings, "AI_TEMPERATURE", 0.3)
-        self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "AI_MAX_TOKENS", 1000)
+        self.model = model or getattr(settings, "AI_MODEL", "gpt-5-mini")
+        self.temperature = temperature if temperature is not None else getattr(settings, "AI_TEMPERATURE", 1.0)
+        self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "AI_MAX_TOKENS", 3500)
 
-        self.cost_per_1m_input_tokens = 0.15
-        self.cost_per_1m_output_tokens = 0.60
+        self.cost_per_1m_input_tokens = getattr(settings, "AI_INPUT_COST_PER_1M_TOKENS", 0.0)
+        self.cost_per_1m_output_tokens = getattr(settings, "AI_OUTPUT_COST_PER_1M_TOKENS", 0.0)
 
     def _log_usage(
         self,
@@ -119,16 +136,20 @@ class FreightPulseAIClient:
 
         while attempt <= retries:
             try:
-                response = await self.client.beta.chat.completions.parse(
-                    model=azure_deployment,
-                    messages=[
+                parse_kwargs: dict[str, Any] = {
+                    "model": azure_deployment,
+                    "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
                     ],
-                    temperature=effective_temperature,
-                    max_tokens=effective_max_tokens,
-                    response_format=output_schema
-                )
+                    "response_format": output_schema,
+                }
+                if effective_max_tokens is not None:
+                    parse_kwargs["max_completion_tokens"] = effective_max_tokens
+                if effective_temperature is not None and effective_temperature != 1.0:
+                    parse_kwargs["temperature"] = effective_temperature
+
+                response = await self.client.beta.chat.completions.parse(**parse_kwargs)
 
                 latency = time.time() - start_time
                 self._log_usage(response.usage, feature_name, effective_model, prompt_version=prompt_version)

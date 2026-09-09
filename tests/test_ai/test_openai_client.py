@@ -158,3 +158,45 @@ async def test_generate_structured_json_decode_error_retry(ai_client):
 
         assert isinstance(result, RateOutlookOutput)
         assert ai_client.client.beta.chat.completions.parse.call_count == 2
+
+
+def test_normalize_azure_endpoint():
+    from app.ai.openai_client import normalize_azure_endpoint
+
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com/openai/v1") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com/openai/v1/") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com/openai") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com/openai/") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com/") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("https://my-res.openai.azure.com") == "https://my-res.openai.azure.com"
+    assert normalize_azure_endpoint("") == ""
+    assert normalize_azure_endpoint(None) == ""
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_passes_max_completion_tokens(ai_client):
+    mock_response = MagicMock()
+    mock_response.choices = [
+        MagicMock(message=MagicMock(refusal=None, parsed=RateOutlookOutput(
+            outlook_text="This is a valid test outlook that exceeds the minimum length requirement.",
+            recommendation="wait",
+            confidence=85
+        )))
+    ]
+    mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+    ai_client.client.beta.chat.completions.parse = AsyncMock(return_value=mock_response)
+
+    await ai_client.generate_structured(
+        system_prompt="System",
+        user_content="User",
+        output_schema=RateOutlookOutput,
+        feature_name="test_feature",
+        max_tokens=1500,
+        temperature=1.0,
+    )
+
+    ai_client.client.beta.chat.completions.parse.assert_called_once()
+    call_kwargs = ai_client.client.beta.chat.completions.parse.call_args.kwargs
+    assert "max_completion_tokens" in call_kwargs
+    assert call_kwargs["max_completion_tokens"] == 1500
+    assert "max_tokens" not in call_kwargs

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     VESSELFINDER_API_KEY: str = ""
     AZURE_OPENAI_API_KEY: str = ""
     AZURE_OPENAI_ENDPOINT: str = ""
-    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4.1-mini"
+    AZURE_OPENAI_DEPLOYMENT: str = "gpt-5-mini-1"
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
     EXCHANGE_RATE_API_KEY: str = ""
     API_KEY: Optional[str] = None
@@ -23,9 +23,13 @@ class Settings(BaseSettings):
     AI_ROUTE_BRIEF_PROMPT_VERSION: str = "v1"
 
     # AI Model Configuration
-    AI_MODEL: str = "gpt-4.1-mini"
-    AI_TEMPERATURE: float = 0.3
-    AI_MAX_TOKENS: int = 1000
+    AI_MODEL: str = "gpt-5-mini"
+    AI_TEMPERATURE: float = 1.0
+    AI_MAX_TOKENS: int = 3500
+
+    # AI Pricing per 1M tokens (Requires confirmation by infrastructure for exact Azure gpt-5-mini pricing)
+    AI_INPUT_COST_PER_1M_TOKENS: float = 0.0
+    AI_OUTPUT_COST_PER_1M_TOKENS: float = 0.0
 
     # AI Budget and Telemetry Safeguards
     AI_DAILY_BUDGET_USD: float = 0.0  # 0.0 = unlimited

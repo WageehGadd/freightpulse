@@ -143,3 +143,25 @@ async def test_generate_brief_does_not_log_raw_input(mock_logger, generator, moc
     for arg in log_args[1:]:
         assert sensitive_advisory not in str(arg)
         assert sensitive_condition not in str(arg)
+
+
+def test_generate_route_brief_pdf_unicode_resilience(tmp_path):
+    from app.services.pdf_generator import generate_route_brief_pdf
+    import os
+
+    unicode_markdown = (
+        "# Route brief — Shanghai (CNSHA) → Los Angeles (USLAX) via MSC\n\n"
+        "- Key facts:\n"
+        "  • Origin: Shanghai (CNSHA)\n"
+        "  • Destination: Los Angeles (USLAX)\n"
+        "  • “Important notice” regarding delays – 2–3 days delay expected.\n"
+    )
+
+    pdf_path = generate_route_brief_pdf("test_unicode_brief", unicode_markdown)
+    assert os.path.exists(pdf_path)
+    assert os.path.getsize(pdf_path) > 0
+    # Clean up test artifact
+    try:
+        os.remove(pdf_path)
+    except OSError:
+        pass
