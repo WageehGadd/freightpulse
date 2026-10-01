@@ -1,7 +1,11 @@
 import httpx
+from datetime import datetime, timezone
 from app.scrapers.base import BaseScraper
 from app.redis_client import get_redis
 from app.config import settings
+from sqlalchemy.dialects.postgresql import insert
+from app.database import AsyncSessionLocal
+from app.models.exchange_rate import ExchangeRate
 import structlog
 
 logger = structlog.get_logger()
@@ -33,6 +37,26 @@ class ExchangeRateScraper(BaseScraper):
 
         redis = get_redis()
         await redis.set(CACHE_KEY, str(rate), ex=CACHE_TTL_SECONDS)
+        
+        observed_date = datetime.now(timezone.utc).date()
+        
+        try:
+            async with AsyncSessionLocal() as session:
+                stmt = insert(ExchangeRate).values(
+                    base_currency="USD",
+                    quote_currency="EGP",
+                    exchange_rate=rate,
+                    observed_date=observed_date
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["base_currency", "quote_currency", "observed_date"],
+                    set_={"exchange_rate": rate}
+                )
+                await session.execute(stmt)
+                await session.commit()
+        except Exception as e:
+            logger.error("exchange_rate_persistence_failed", error=str(e))
+            # Fall through, Redis update already successful
 
         logger.info("exchange_rate_updated", usd_egp=rate)
         return {"rows_upserted": 1, "usd_egp": rate}

@@ -1,8 +1,12 @@
 import httpx
 from bs4 import BeautifulSoup
+from datetime import datetime, timezone
 
 from app.scrapers.base import BaseScraper
 from app.redis_client import get_redis
+from sqlalchemy.dialects.postgresql import insert
+from app.database import AsyncSessionLocal
+from app.models.bunker_rate import BunkerRate
 
 import structlog
 
@@ -79,26 +83,55 @@ class BunkerScraper(BaseScraper):
 
         redis = get_redis()
         rows_upserted = 0
+        observed_date = datetime.now(timezone.utc).date()
 
-        for label in TRACKED_ROWS:
-            if label in prices:
-                cache_key = (
-                    f"{CACHE_KEY_PREFIX}:"
-                    f"{label.lower().replace(' ', '_').replace('/', '_')}"
-                )
+        async with AsyncSessionLocal() as session:
+            for label in TRACKED_ROWS:
+                if label in prices:
+                    cache_key = (
+                        f"{CACHE_KEY_PREFIX}:"
+                        f"{label.lower().replace(' ', '_').replace('/', '_')}"
+                    )
 
-                await redis.set(
-                    cache_key,
-                    str(prices[label]),
-                    ex=CACHE_TTL_SECONDS,
-                )
+                    await redis.set(
+                        cache_key,
+                        str(prices[label]),
+                        ex=CACHE_TTL_SECONDS,
+                    )
 
-                rows_upserted += 1
-            else:
-                logger.warning(
-                    "bunker_expected_port_missing",
-                    port=label,
-                )
+                    try:
+                        stmt = insert(BunkerRate).values(
+                            port_name=label,
+                            fuel_type="IFO380",
+                            price_usd=prices[label],
+                            observed_date=observed_date
+                        )
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=["port_name", "fuel_type", "observed_date"],
+                            set_={"price_usd": prices[label]}
+                        )
+                        await session.execute(stmt)
+                    except Exception as e:
+                        logger.error(
+                            "bunker_persistence_failed",
+                            port=label,
+                            error=str(e),
+                        )
+                        # Failure isolation: do not fail entire task if one persistence fails, 
+                        # or if DB is down. Redis is already updated.
+
+                    rows_upserted += 1
+                else:
+                    logger.warning(
+                        "bunker_expected_port_missing",
+                        port=label,
+                    )
+            
+            try:
+                await session.commit()
+            except Exception as e:
+                logger.error("bunker_commit_failed", error=str(e))
+                await session.rollback()
 
         logger.info(
             "bunker_prices_updated",
