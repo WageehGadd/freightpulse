@@ -11,6 +11,7 @@ from app.routers import (
     carriers,
     dashboard,
     exchange_rate,
+    forecasts,
     health,
     ports,
     rates,
@@ -72,3 +73,4 @@ app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
 app.include_router(websocket.router, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(websocket.router, tags=["WebSockets"])
+app.include_router(forecasts.router, prefix="/api/v1", tags=["Forecasts"])

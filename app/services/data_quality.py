@@ -39,6 +39,18 @@ class DataQualityReport(BaseModel):
 
 
 class DataQualityService:
+    FREIGHT_RATE_CADENCE_SECONDS = 7 * 24 * 3600
+
+    @classmethod
+    def evaluate_freight_rate_freshness(
+        cls, latest_observation_date: date, evaluated_at: datetime | None = None
+    ) -> tuple[str, float]:
+        """Authoritative T02 freight freshness: UTC age / configured weekly cadence."""
+        now = evaluated_at if evaluated_at is not None else datetime.now(timezone.utc)
+        latest = cls._datetime_from_date(latest_observation_date)
+        return cls._evaluate_freshness(
+            (now - latest).total_seconds(), cls.FREIGHT_RATE_CADENCE_SECONDS
+        )
     
     @staticmethod
     def _evaluate_freshness(age_seconds: float, expected_cadence_seconds: int) -> tuple[Literal["fresh", "aging", "stale"], float]:
@@ -65,8 +77,8 @@ class DataQualityService:
     async def evaluate_freight_rates(self, session: AsyncSession) -> DataQualityReport:
         now = datetime.now(timezone.utc)
         
-        # SCFI is weekly
-        cadence_seconds = 7 * 24 * 3600
+        # Configured T02 freight cadence; not inferred from stored observations.
+        cadence_seconds = self.FREIGHT_RATE_CADENCE_SECONDS
         
         result = await session.execute(
             select(
@@ -85,7 +97,7 @@ class DataQualityService:
         latest = self._datetime_from_date(row.latest)
         age = (now - latest).total_seconds()
         
-        freshness, ratio = self._evaluate_freshness(age, cadence_seconds)
+        freshness, ratio = self.evaluate_freight_rate_freshness(row.latest, now)
         
         expected_periods = max(1, int((latest - earliest).total_seconds() / cadence_seconds) + 1)
         

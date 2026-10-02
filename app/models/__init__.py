@@ -5,6 +5,7 @@ from app.models.exchange_rate import ExchangeRate
 from app.models.freight_rate import FreightRate
 from app.models.port_congestion import PortCongestion
 from app.models.rate_alert import RateAlert, RateAlertRule
+from app.models.rate_forecast import RateForecast
 from app.models.rate_trend import RateTrend
 from app.models.route_brief import RouteBrief
 from app.models.user import User
@@ -19,6 +20,7 @@ __all__ = [
     "PortCongestion",
     "RateAlert",
     "RateAlertRule",
+    "RateForecast",
     "RateTrend",
     "RouteBrief",
     "User",

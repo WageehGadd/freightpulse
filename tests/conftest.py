@@ -91,6 +91,45 @@ async def auth_headers(db_session, test_user):
     return {"X-API-Key": plaintext_key}
 
 
+@pytest.fixture(scope="function")
+async def authenticated_client(db_session):
+    """HTTP client with a valid non-admin API key injected."""
+    from app.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    previous_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        # Create user + key
+        plaintext_key = "fp_live_authtestkey456"
+        user = User(email="authtest@freightpulse.ai", is_admin=False)
+        db_session.add(user)
+        await db_session.flush()
+        api_key = ApiKey(
+            user_id=user.id,
+            key_hash=hash_api_key(plaintext_key),
+            key_prefix="fp_live_auth",
+            name="Auth Test Key",
+        )
+        db_session.add(api_key)
+        await db_session.commit()
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"X-API-Key": plaintext_key},
+        ) as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
+
+
+
 from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy.orm import sessionmaker as sync_sessionmaker
 from sqlalchemy.pool import StaticPool

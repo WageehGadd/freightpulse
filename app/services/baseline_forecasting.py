@@ -2,7 +2,9 @@ import math
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
 from datetime import date
+from decimal import Decimal
 from app.services.forecast_dataset import ForecastDataset
+from app.services.data_quality import DataQualityService
 
 class BacktestObservation(BaseModel):
     prediction_date: date
@@ -45,6 +47,11 @@ class NextStepForecast(BaseModel):
 
 
 class BaselineForecastingService:
+    # Bump only for material changes to numerical/model-selection semantics.
+    # v1: existing naive/MA/drift, MAE/RMSE/name selection, Decimal prediction
+    # with half-even cent rounding at persistence. Unrelated commits do not bump it.
+    MODEL_VERSION = "baseline-v1-decimal"
+
     def __init__(self, initial_train_size: int = 15):
         self.initial_train_size = initial_train_size
         self.models = ["Naive", "MA(2)", "MA(3)", "MA(4)", "Drift"]
@@ -72,15 +79,15 @@ class BaselineForecastingService:
             
         elif model_name == "MA(2)":
             if n < 2: return last_val
-            return sum(history[-2:]) / 2.0
+            return sum(history[-2:]) / 2
             
         elif model_name == "MA(3)":
             if n < 3: return sum(history[-n:]) / n
-            return sum(history[-3:]) / 3.0
+            return sum(history[-3:]) / 3
             
         elif model_name == "MA(4)":
             if n < 4: return sum(history[-n:]) / n
-            return sum(history[-4:]) / 4.0
+            return sum(history[-4:]) / 4
             
         elif model_name == "Drift":
             if n < 2: return last_val
@@ -88,6 +95,15 @@ class BaselineForecastingService:
             return last_val + horizon * ((last_val - first_val) / (n - 1))
             
         return last_val
+
+    def predict_rate(self, model_name: str, history: List[Decimal]) -> Decimal:
+        """Use the same baseline arithmetic on exact monetary inputs for persistence.
+
+        Backtests retain float metrics; monetary output avoids a float round-trip.
+        """
+        if not history or model_name not in self.models:
+            raise ValueError("A supported baseline and nonempty monetary history are required")
+        return self._predict(model_name, history, horizon=1)
 
     def backtest(self, dataset: ForecastDataset) -> SeriesBacktestReport:
         obs = dataset.observations
@@ -177,10 +193,9 @@ class BaselineForecastingService:
         last_date = dataset.observations[-1].date
         next_date = last_date + timedelta(days=1)
         
-        # Check freshness via metadata
+        # Source freshness uses T02; the baseline remains historical-only.
+        input_freshness, _ = DataQualityService.evaluate_freight_rate_freshness(last_date)
         warning = "Historical forecast only. Do not use for live booking decisions."
-        is_fresh = False # By default T02 has marked these as stale
-        # We can pass live_decision_eligible=False safely based on T03 profiling
         
         return NextStepForecast(
             series_id=dataset.metadata.series_id,
@@ -188,7 +203,7 @@ class BaselineForecastingService:
             model_name=model_name,
             predicted_value=next_val,
             historical_backtest_mae=backtest_mae,
-            input_freshness="stale",
+            input_freshness=input_freshness,
             live_decision_eligible=False,
             warning=warning
         )
