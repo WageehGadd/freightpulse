@@ -13,11 +13,12 @@ from app.schemas.rate import (
     LaneDetailResponse,
     RateCompareResponse,
     RateHistoryPoint,
-    RateOutlookCreateResponse,
     RatesAllResponse,
     TrendInfo,
 )
 from app.tasks.rate_outlook_generation import generate_rate_outlook
+from app.services.rate_outlook import RateOutlookService
+from app.schemas.outlook import GroundedOutlookCreateResponse, GroundedOutlookResponse
 
 from app.auth.rate_limit import RateLimiter
 
@@ -164,34 +165,35 @@ async def get_lane_rate(
             change_7d_pct=trend_row.change_7d_pct if trend_row else None,
             change_30d_pct=trend_row.change_30d_pct if trend_row else None,
             anomaly_flag=trend_row.anomaly_flag if trend_row else False,
-            outlook_text=trend_row.outlook_text if trend_row else None,
-            recommendation=trend_row.recommendation if trend_row else None,
-            confidence=trend_row.confidence if trend_row else None,
-            status=trend_row.status if trend_row else "none",
-            error_message=trend_row.error_message if trend_row else None,
+            # Deprecated lane-level AI advice is never authoritative grounded output.
+            outlook_text=None,
+            recommendation=None,
+            confidence=None,
+            status="none",  # Legacy lifecycle is not a T07 result.
+            error_message=None,
         ),
     )
 
 
-@router.post("/rates/trends/{trend_id}/outlook", response_model=RateOutlookCreateResponse, status_code=202)
+@router.post("/rates/trends/{trend_id}/outlook", response_model=GroundedOutlookCreateResponse, status_code=202)
 async def generate_rate_outlook_endpoint(
     trend_id: UUID,
+    source: str | None = None,
+    container_type: str | None = None,
+    retry: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
-    trend = await db.get(RateTrend, trend_id)
-    if not trend:
-        raise HTTPException(status_code=404, detail="Rate trend not found")
+    row = await RateOutlookService(db).create(trend_id, source, container_type, retry=retry)
+    if row.status == "pending":
+        try:
+            generate_rate_outlook.delay(str(row.id))
+        except Exception:
+            logger.exception("grounded_outlook_enqueue_failed", extra={"outlook_id": str(row.id)})
+            await RateOutlookService(db).mark_enqueue_failed(row)
+    return GroundedOutlookCreateResponse(trend_id=str(row.trend_id), outlook_id=row.id,
+        forecast_id=row.forecast_id, status=row.status)
 
-    trend.status = "pending"
-    trend.error_message = None
-    await db.commit()
 
-    try:
-        generate_rate_outlook.delay(str(trend.id))
-    except Exception:
-        logger.exception("rate_outlook_enqueue_failed", extra={"trend_id": str(trend.id)})
-        trend.status = "failed"
-        trend.error_message = "Rate outlook could not be queued. Please try again later."
-        await db.commit()
-
-    return RateOutlookCreateResponse(trend_id=str(trend.id), status=trend.status)
+@router.get("/rates/outlooks/{outlook_id}", response_model=GroundedOutlookResponse)
+async def get_grounded_outlook(outlook_id: UUID, db: AsyncSession = Depends(get_db)):
+    return await RateOutlookService(db).read(outlook_id)

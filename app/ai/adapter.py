@@ -132,6 +132,7 @@ class RateTrendRepository(Protocol):
 
 
 class RateOutlookNarratorAdapter:
+    """Legacy v1 compatibility adapter; not used by authoritative T07 routes/tasks."""
     def __init__(self, repository: RateTrendRepository, narrator: RateOutlookNarrator):
         self.repository = repository
         self.narrator = narrator

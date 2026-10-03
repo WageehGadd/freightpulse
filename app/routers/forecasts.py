@@ -29,62 +29,12 @@ from app.auth.rate_limit import RateLimiter
 from app.auth.security import get_current_admin_user, get_current_user
 from app.database import get_db
 from app.models.user import User
-from app.schemas.forecast import (
-    ForecastEvidenceSchema,
-    ForecastGenerateResponse,
-    ForecastListResponse,
-    ForecastProvenanceSchema,
-    ForecastSafetySchema,
-    ForecastSeriesSchema,
-    ForecastValueSchema,
-    RateForecastResponse,
-)
+from app.schemas.forecast import ForecastGenerateResponse, ForecastListResponse
 from app.services.forecast_persistence import ForecastPersistenceService
-from app.services.data_quality import DataQualityService
+from app.services.forecast_presentation import to_forecast_response as _to_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/forecasts", tags=["Forecasts"], dependencies=[Depends(RateLimiter())])
-
-
-def _to_response(row, evaluated_at: datetime) -> RateForecastResponse:
-    """Map a RateForecast ORM row to the structured API response."""
-    current_freshness, _ = DataQualityService.evaluate_freight_rate_freshness(row.latest_observation_date, evaluated_at)
-    return RateForecastResponse(
-        id=row.id,
-        series=ForecastSeriesSchema(
-            source=row.source,
-            trade_lane=row.trade_lane,
-            container_type=row.container_type,
-        ),
-        forecast=ForecastValueSchema(
-            forecast_for_date=row.forecast_for_date,
-            predicted_rate=float(row.predicted_rate),
-            model=row.model_name,
-            model_version=row.model_version,
-            horizon=row.forecast_horizon,
-        ),
-        evidence=ForecastEvidenceSchema(
-            history_observations=row.history_observations,
-            evaluation_points=row.evaluation_points,
-            mae=row.backtest_mae,
-            rmse=row.backtest_rmse,
-            smape=row.backtest_smape,
-            directional_accuracy=row.backtest_directional_accuracy,
-            data_readiness=row.data_readiness,
-        ),
-        provenance=ForecastProvenanceSchema(
-            latest_observation_date=row.latest_observation_date,
-            latest_actual_rate=float(row.latest_actual_rate),
-            input_freshness_at_generation=row.input_freshness,
-            current_input_freshness=current_freshness,
-            freshness_evaluated_at=evaluated_at,
-            generated_at=row.generated_at,
-        ),
-        safety=ForecastSafetySchema(
-            live_decision_eligible=row.live_decision_eligible,
-            warning=row.warning,
-        ),
-    )
 
 
 @router.get("", response_model=ForecastListResponse)

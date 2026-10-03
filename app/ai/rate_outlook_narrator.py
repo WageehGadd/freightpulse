@@ -81,3 +81,19 @@ class RateOutlookNarrator:
                 latency,
             )
             raise
+
+    async def narrate_grounded(self, evidence: dict, prompt_version: str = "v2"):
+        """Production T07 path; legacy narrate() is retained for compatibility only."""
+        import json
+        from app.schemas.ai_outputs import GroundedRateOutlookOutput
+        if prompt_version != "v2":
+            raise AIValidationError("Grounded narration requires rate_outlook/v2")
+        prompt = get_prompt("rate_outlook", "v2")
+        result = await self.ai_client.generate_structured(
+            system_prompt=prompt.system_prompt,
+            user_content=prompt.user_template.format(evidence=json.dumps(evidence, sort_keys=True)),
+            output_schema=GroundedRateOutlookOutput,
+            feature_name="rate_outlook_narrator", prompt_version=prompt.version,
+            temperature=1.0,
+        )
+        return GroundedRateOutlookOutput.model_validate(result)

@@ -7,6 +7,7 @@ from app.models.port_congestion import PortCongestion
 from app.models.rate_alert import RateAlert, RateAlertRule
 from app.models.rate_forecast import RateForecast
 from app.models.rate_trend import RateTrend
+from app.models.rate_outlook import RateOutlook
 from app.models.route_brief import RouteBrief
 from app.models.user import User
 from app.models.api_key import ApiKey
@@ -22,6 +23,7 @@ __all__ = [
     "RateAlertRule",
     "RateForecast",
     "RateTrend",
+    "RateOutlook",
     "RouteBrief",
     "User",
     "ApiKey",

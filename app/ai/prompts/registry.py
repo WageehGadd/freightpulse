@@ -80,7 +80,7 @@ registry = PromptRegistry()
 
 def _init_default_prompts() -> None:
     """Pre-register baseline v1 prompts from existing prompt files."""
-    from app.ai.prompts import carrier_summary_v1, rate_outlook_v1, route_brief_v1
+    from app.ai.prompts import carrier_summary_v1, rate_outlook_v1, rate_outlook_v2, route_brief_v1
 
     # Carrier Summarizer v1
     registry.register(
@@ -105,6 +105,10 @@ def _init_default_prompts() -> None:
             description="Rate outlook narrator baseline prompt v1",
         ),
     )
+
+    registry.register("rate_outlook", "v2", PromptTemplate(
+        version="v2", system_prompt=rate_outlook_v2.SYSTEM_PROMPT,
+        user_template=rate_outlook_v2.USER_TEMPLATE, description="Persisted forecast explanation only"))
 
     # Route Brief v1
     registry.register(

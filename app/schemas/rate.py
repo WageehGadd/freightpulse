@@ -11,6 +11,7 @@ class RateHistoryPoint(BaseModel):
 import uuid
 
 class TrendInfo(BaseModel):
+    """Legacy lane aggregate; AI fields deprecated. Use /rates/outlooks/{id}."""
     id: uuid.UUID | None = None
     direction: str | None  # rising | stable | falling
     slope_per_week: float | None

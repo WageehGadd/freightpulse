@@ -60,7 +60,7 @@ async def get_ai_health(
         redis_status=redis_status,
         active_prompts={
             "carrier_summarizer": getattr(settings, "AI_CARRIER_SUMMARIZER_PROMPT_VERSION", "v1"),
-            "rate_outlook": getattr(settings, "AI_RATE_OUTLOOK_PROMPT_VERSION", "v1"),
+            "rate_outlook": "v2",  # Grounded production path is explicitly pinned.
             "route_brief": getattr(settings, "AI_ROUTE_BRIEF_PROMPT_VERSION", "v1"),
         },
         budget={
