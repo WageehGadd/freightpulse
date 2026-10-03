@@ -7,9 +7,9 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy import select, func, update
 from sqlalchemy.dialects.postgresql import insert
-from app.models import RateTrend, RateForecast, FreightRate, RateOutlook
+from app.models import RateTrend, RateForecast, RateOutlook
 from app.services.forecast_persistence import ForecastPersistenceService
-from app.services.data_quality import DataQualityService
+from app.services.forecast_state import ForecastStateCollector, snapshot_forecast, freshness_and_eligibility
 from app.services.forecast_presentation import to_forecast_response
 from app.schemas.outlook import GroundedOutlookResponse, NarrationResponse, ExactForecastValue
 from app.schemas.forecast import RateForecastResponse
@@ -25,17 +25,10 @@ class RateOutlookService:
         self.session = session
 
     async def context_state(self, trend, forecast, generation=None):
-        latest_date = await self.session.scalar(select(func.max(FreightRate.rate_date)).where(
-            FreightRate.source == forecast.source, FreightRate.trade_lane == forecast.trade_lane,
-            FreightRate.container_type == forecast.container_type))
-        if latest_date is None:
-            return "source_unavailable", "Matching source observations are unavailable."
-        if latest_date > forecast.latest_observation_date:
-            return "superseded", "Newer source observations require forecast regeneration."
-        latest = await ForecastPersistenceService(self.session).get_latest_forecasts(
-            forecast.source, forecast.trade_lane, forecast.container_type)
-        if not latest or latest[0].id != forecast.id or (generation and forecast.generated_at != generation):
-            return "superseded", "The selected forecast generation is no longer current."
+        current = await ForecastStateCollector(self.session).collect(
+            snapshot_forecast(forecast), datetime.now(timezone.utc), generation=generation)
+        if current.context_state != "current":
+            return current.context_state, current.context_warning
         latest_trend_date = await self.session.scalar(select(func.max(RateTrend.computed_date)).where(
             RateTrend.trade_lane == forecast.trade_lane))
         if trend.trade_lane != forecast.trade_lane or trend.computed_date < forecast.latest_observation_date or trend.computed_date != latest_trend_date:
@@ -111,8 +104,8 @@ class RateOutlookService:
         # Pydantic constructs a new object; never mutate the stored generation snapshot.
         quantitative = RateForecastResponse.model_validate(snapshot)
         now = datetime.now(timezone.utc)
-        freshness, _ = DataQualityService.evaluate_freight_rate_freshness(
-            quantitative.provenance.latest_observation_date, now)
+        freshness, effective = freshness_and_eligibility(
+            quantitative.provenance.latest_observation_date, quantitative.safety.live_decision_eligible, state, now)
         quantitative.provenance.current_input_freshness = freshness
         quantitative.provenance.freshness_evaluated_at = now
         text = row.outlook_text
@@ -126,7 +119,7 @@ class RateOutlookService:
             prompt_version=row.prompt_version, created_at=row.created_at, completed_at=row.completed_at,
             quantitative=quantitative, exact_values=ExactForecastValue.model_validate(snapshot["exact_values"]),
             context_state=state, context_warning=warning,
-            effective_live_decision_eligible=quantitative.safety.live_decision_eligible and freshness in ("fresh", "aging") and state=="current",
+            effective_live_decision_eligible=effective,
             narration=NarrationResponse(status=row.status if text or row.status!="completed" else "failed",
                 text=text, error_message=row.error_message or (warning if row.status=="completed" and text is None else None),
                 attempt_count=row.attempt_count,
