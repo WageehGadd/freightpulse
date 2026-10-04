@@ -257,5 +257,7 @@ class ForecastPersistenceService:
             .where(ranked.c.rank == 1)
             .order_by(RateForecast.source, RateForecast.trade_lane, RateForecast.container_type)
         )
-        result = await self._session.execute(stmt)
+        # Winner rows may already be loaded before another session regenerates them.
+        # Refresh scalar evidence from this query without changing ranking semantics.
+        result = await self._session.execute(stmt.execution_options(populate_existing=True))
         return list(result.scalars().all())

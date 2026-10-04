@@ -10,6 +10,7 @@ from app.routers import (
     bunker,
     carriers,
     dashboard,
+    decisions,
     exchange_rate,
     forecasts,
     health,
@@ -74,3 +75,5 @@ app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
 app.include_router(websocket.router, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(websocket.router, tags=["WebSockets"])
 app.include_router(forecasts.router, prefix="/api/v1", tags=["Forecasts"])
+
+app.include_router(decisions.router, prefix="/api/v1", tags=["Decisions"])
