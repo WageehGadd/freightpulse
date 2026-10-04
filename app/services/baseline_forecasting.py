@@ -1,10 +1,17 @@
+from __future__ import annotations
 import math
+from typing import TYPE_CHECKING
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
 from datetime import date
 from decimal import Decimal
-from app.services.forecast_dataset import ForecastDataset
-from app.services.data_quality import DataQualityService
+if TYPE_CHECKING:
+    from app.services.forecast_dataset import ForecastDataset
+
+
+def baseline_selection_key(model_name, mae, rmse):
+    """Authoritative deterministic baseline selection order, shared with T11."""
+    return mae, rmse, model_name
 
 class BacktestObservation(BaseModel):
     prediction_date: date
@@ -173,7 +180,7 @@ class BaselineForecastingService:
             
         # Select champion model
         # Sort by MAE ascending. Tie breaker: RMSE ascending
-        model_results.sort(key=lambda r: (r.metrics.mae, r.metrics.rmse, r.model_name))
+        model_results.sort(key=lambda r: baseline_selection_key(r.model_name, r.metrics.mae, r.metrics.rmse))
         champion = model_results[0]
         
         return SeriesBacktestReport(
@@ -194,6 +201,7 @@ class BaselineForecastingService:
         next_date = last_date + timedelta(days=1)
         
         # Source freshness uses T02; the baseline remains historical-only.
+        from app.services.data_quality import DataQualityService
         input_freshness, _ = DataQualityService.evaluate_freight_rate_freshness(last_date)
         warning = "Historical forecast only. Do not use for live booking decisions."
         
