@@ -264,10 +264,10 @@ class DataQualityService:
             return self._empty_report("carrier_advisories", "live", now)
             
         latest = row.latest
-        if latest.tzinfo is None:
+        if latest is not None and latest.tzinfo is None:
             latest = latest.replace(tzinfo=timezone.utc)
             
-        age = (now - latest).total_seconds() if latest else 0.0
+        age = (now - latest).total_seconds() if latest is not None else None
         
         # Event driven data is assumed fresh until expired, we don't penalize age
         
