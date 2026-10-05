@@ -7,6 +7,7 @@ from typing import Any, Optional, TypeVar
 
 import openai
 from openai import AsyncAzureOpenAI
+from openai.types import CompletionUsage
 from pydantic import BaseModel, ValidationError
 
 import time
@@ -133,112 +134,95 @@ class FreightPulseAIClient:
         start_time = time.time()
         retries = 2
         attempt = 0
+        input_tokens = output_tokens = 0
+        actual_cost = 0.0
+        response_received = False
+        reservation_state = "active"
+        result = None
+        failure = None
 
-        while attempt <= retries:
+        try:
+            while attempt <= retries:
+                try:
+                    parse_kwargs: dict[str, Any] = {
+                        "model": azure_deployment,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content}
+                        ],
+                        "response_format": output_schema,
+                    }
+                    if effective_max_tokens is not None:
+                        parse_kwargs["max_completion_tokens"] = effective_max_tokens
+                    if effective_temperature is not None and effective_temperature != 1.0:
+                        parse_kwargs["temperature"] = effective_temperature
+
+                    # One SDK request; defer its same structured parser until usage
+                    # is captured, including responses whose output cannot validate.
+                    raw = await self.client.beta.chat.completions.with_raw_response.parse(**parse_kwargs)
+                    response_received = True
+                    body = raw.http_response.json()
+                    usage = CompletionUsage.model_validate(body["usage"]) if body.get("usage") is not None else None
+                    if usage is not None:
+                        input_tokens += usage.prompt_tokens
+                        output_tokens += usage.completion_tokens
+                        actual_cost += (
+                            usage.prompt_tokens / 1_000_000 * self.cost_per_1m_input_tokens
+                            + usage.completion_tokens / 1_000_000 * self.cost_per_1m_output_tokens
+                        )
+                    self._log_usage(usage, feature_name, effective_model, prompt_version=prompt_version)
+                    response = raw.parse()
+                    message = response.choices[0].message
+                    if getattr(message, "refusal", None):
+                        raise AIValidationError(f"Model refused: {message.refusal}")
+                    result = output_schema.model_validate(message.parsed)
+                    break
+                except (openai.APITimeoutError, asyncio.TimeoutError) as exc:
+                    attempt += 1
+                    if attempt > retries:
+                        raise AITimeoutError(f"OpenAI API timed out after {retries} retries.") from exc
+                    await asyncio.sleep(2 ** attempt)
+                except (openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError):
+                    attempt += 1
+                    if attempt > retries:
+                        raise
+                    await asyncio.sleep(2 ** attempt)
+                except (ValidationError, json.JSONDecodeError) as exc:
+                    attempt += 1
+                    if attempt > retries:
+                        raise AIValidationError(f"Failed to validate response against schema after {retries} retries: {exc}") from exc
+                    user_content += f"\n\nPrevious response failed validation: {exc}. Please ensure the response exactly matches the required JSON schema."
+                    await asyncio.sleep(1)
+        except Exception as exc:
+            failure = exc
+
+        # Set attempted BEFORE awaiting: a Redis error may follow remote execution.
+        # Never retry settlement or release after an indeterminate reconciliation.
+        # This is local ordinary-execution discipline, not distributed exactly-once.
+        if reservation_state == "active":
+            reservation_state = "attempted"
             try:
-                parse_kwargs: dict[str, Any] = {
-                    "model": azure_deployment,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_content}
-                    ],
-                    "response_format": output_schema,
-                }
-                if effective_max_tokens is not None:
-                    parse_kwargs["max_completion_tokens"] = effective_max_tokens
-                if effective_temperature is not None and effective_temperature != 1.0:
-                    parse_kwargs["temperature"] = effective_temperature
-
-                response = await self.client.beta.chat.completions.parse(**parse_kwargs)
-
-                latency = time.time() - start_time
-                self._log_usage(response.usage, feature_name, effective_model, prompt_version=prompt_version)
-
-                input_tokens = response.usage.prompt_tokens if response.usage else 0
-                output_tokens = response.usage.completion_tokens if response.usage else 0
-                actual_cost = (
-                    (input_tokens / 1_000_000) * self.cost_per_1m_input_tokens
-                    + (output_tokens / 1_000_000) * self.cost_per_1m_output_tokens
-                )
-
-                # Reconcile budget reservation with actual cost
-                await BudgetGuard.reconcile_success(est_micro_usd, actual_cost)
-
-                # Telemetry record for success
-                await AITelemetry.record_call(
-                    feature_name=feature_name,
-                    prompt_version=prompt_version or "v1",
-                    model=effective_model,
-                    success=True,
-                    latency=latency,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    actual_cost=actual_cost,
-                )
-
-                if getattr(response.choices[0].message, "refusal", None):
-                    raise AIValidationError(f"Model refused: {response.choices[0].message.refusal}")
-
-                return response.choices[0].message.parsed
-
-            except (openai.APITimeoutError, asyncio.TimeoutError) as e:
-                attempt += 1
-                if attempt > retries:
-                    latency = time.time() - start_time
+                if response_received:
+                    await BudgetGuard.reconcile_success(est_micro_usd, actual_cost)
+                else:
                     await BudgetGuard.release_reservation(est_micro_usd)
-                    await AITelemetry.record_call(
-                        feature_name=feature_name,
-                        prompt_version=prompt_version or "v1",
-                        model=effective_model,
-                        success=False,
-                        latency=latency,
-                        error_type="AITimeoutError",
-                    )
-                    raise AITimeoutError(f"OpenAI API timed out after {retries} retries.") from e
-                await asyncio.sleep(2 ** attempt)
+                reservation_state = "completed"  # Existing fail-open policy may mask an outage.
+            except Exception as exc:
+                failure = exc  # Settlement remains indeterminate; no further cleanup.
 
-            except (openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError) as e:
-                attempt += 1
-                if attempt > retries:
-                    latency = time.time() - start_time
-                    await BudgetGuard.release_reservation(est_micro_usd)
-                    await AITelemetry.record_call(
-                        feature_name=feature_name,
-                        prompt_version=prompt_version or "v1",
-                        model=effective_model,
-                        success=False,
-                        latency=latency,
-                        error_type=type(e).__name__,
-                    )
-                    raise
-                await asyncio.sleep(2 ** attempt)
-
-            except (ValidationError, json.JSONDecodeError) as e:
-                attempt += 1
-                if attempt > retries:
-                    latency = time.time() - start_time
-                    await BudgetGuard.release_reservation(est_micro_usd)
-                    await AITelemetry.record_call(
-                        feature_name=feature_name,
-                        prompt_version=prompt_version or "v1",
-                        model=effective_model,
-                        success=False,
-                        latency=latency,
-                        error_type="AIValidationError",
-                    )
-                    raise AIValidationError(f"Failed to validate response against schema after {retries} retries: {e}") from e
-                # Adjust user content to include the validation error for the retry
-                user_content += f"\n\nPrevious response failed validation: {e}. Please ensure the response exactly matches the required JSON schema."
-                await asyncio.sleep(1)
-            except Exception as e:
-                latency = time.time() - start_time
-                await BudgetGuard.release_reservation(est_micro_usd)
-                await AITelemetry.record_call(
-                    feature_name=feature_name,
-                    prompt_version=prompt_version or "v1",
-                    model=effective_model,
-                    success=False,
-                    latency=latency,
-                    error_type=type(e).__name__,
-                )
-                raise
+        # One terminal LOGICAL-call outcome, carrying all captured response usage.
+        # CancelledError deliberately retains the existing unsupported boundary.
+        await AITelemetry.record_call(
+            feature_name=feature_name,
+            prompt_version=prompt_version or "v1",
+            model=effective_model,
+            success=failure is None,
+            latency=time.time() - start_time,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            actual_cost=actual_cost,
+            error_type=type(failure).__name__ if failure is not None else None,
+        )
+        if failure is not None:
+            raise failure
+        return result

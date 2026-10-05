@@ -262,3 +262,88 @@ def test_ai_prompts_endpoint_hides_raw_prompt_templates():
 
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scenario,responses,success", [
+    ("success",1,True),("refusal",1,False),("refusal_no_usage",0,False),
+    ("validation_retry",2,True),("validation_exhaustion",3,False),("post_response_failure",1,False),
+])
+async def test_client_accounting_preserves_other_reservation(fake_redis,scenario,responses,success):
+    from types import SimpleNamespace
+    from pydantic import ValidationError
+    from app.ai.openai_client import FreightPulseAIClient,AIValidationError
+    from app.schemas.ai_outputs import GroundedRateOutlookOutput
+    narrative=GroundedRateOutlookOutput(outlook_text="Synthetic explanatory narrative meeting the required length boundary.")
+    count=0
+    def response():
+        nonlocal count
+        count+=1
+        invalid=scenario=="validation_exhaustion" or (scenario=="validation_retry" and count==1)
+        refused=scenario.startswith("refusal")
+        def parse():
+            if invalid:
+                return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(refusal=None,parsed={"outlook_text":"short"}))])
+            if scenario=="post_response_failure":raise RuntimeError("Synthetic parser failure")
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(refusal="Synthetic refusal" if refused else None,parsed=None if refused else narrative))])
+        raw=SimpleNamespace(json=lambda:{"usage":None if scenario=="refusal_no_usage" else
+            {"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}},parse=parse)
+        raw.http_response=raw
+        return raw
+    client=object.__new__(FreightPulseAIClient)
+    provider=AsyncMock(side_effect=lambda **kwargs:response())
+    client.client=SimpleNamespace(beta=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        with_raw_response=SimpleNamespace(parse=provider)))))
+    client.model="synthetic";client.temperature=1.0;client.max_tokens=100
+    client.cost_per_1m_input_tokens=1.0;client.cost_per_1m_output_tokens=2.0
+    with patch("app.ai.budget_guard.get_redis",return_value=fake_redis),patch("app.ai.telemetry.get_redis",return_value=fake_redis), \
+         patch.object(settings,"AI_DAILY_BUDGET_USD",1.0),patch.object(settings,"AI_MAX_REQUESTS_PER_MINUTE",0), \
+         patch.object(BudgetGuard,"estimate_request_cost",return_value=0.0001),patch("app.ai.openai_client.asyncio.sleep",new_callable=AsyncMock):
+        # A's independent reservation must survive B's outcome/cleanup.
+        await BudgetGuard.check_and_reserve(0.0002,"request_a")
+        with patch.object(BudgetGuard,"check_and_reserve",wraps=BudgetGuard.check_and_reserve) as reserve, \
+             patch.object(BudgetGuard,"reconcile_success",wraps=BudgetGuard.reconcile_success) as reconcile, \
+             patch.object(BudgetGuard,"release_reservation",wraps=BudgetGuard.release_reservation) as release:
+            call=client.generate_structured("Synthetic","Synthetic",GroundedRateOutlookOutput,"accounting_b")
+            if success:
+                assert await call==narrative
+            else:
+                error=RuntimeError if scenario=="post_response_failure" else AIValidationError
+                with pytest.raises(error):await call
+            reserve.assert_awaited_once();reconcile.assert_awaited_once();release.assert_not_awaited()
+        actual,reserved,committed=await BudgetGuard.get_budget_status()
+        assert reserved==0.0002
+        assert actual==pytest.approx(responses*0.000020)
+        assert committed==pytest.approx(reserved+actual)
+    metrics=[value for key,value in fake_redis.hashes.items() if key.startswith("ai:metrics:daily:")]
+    assert len(metrics)==1
+    m=metrics[0]
+    assert m["requests"]==1
+    assert m.get("successes",0)==int(success) and m.get("errors",0)==int(not success)
+    assert m["requests"]==m.get("successes",0)+m.get("errors",0)
+    assert m["input_tokens"]==10*responses and m["output_tokens"]==5*responses
+    assert m["cost_micro_usd"]==20*responses
+    assert provider.await_count==(2 if scenario=="validation_retry" else 3 if scenario=="validation_exhaustion" else 1)
+
+
+@pytest.mark.asyncio
+async def test_client_telemetry_outage_does_not_repeat_financial_settlement(fake_redis):
+    from types import SimpleNamespace
+    from app.ai.openai_client import FreightPulseAIClient
+    from app.schemas.ai_outputs import GroundedRateOutlookOutput
+    output=GroundedRateOutlookOutput(outlook_text="Synthetic explanatory narrative meeting the required length boundary.")
+    raw=SimpleNamespace(json=lambda:{"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}},
+        parse=lambda:SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(refusal=None,parsed=output))]))
+    raw.http_response=raw
+    provider=AsyncMock(return_value=raw)
+    client=object.__new__(FreightPulseAIClient)
+    client.client=SimpleNamespace(beta=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(with_raw_response=SimpleNamespace(parse=provider)))))
+    client.model="synthetic";client.temperature=1.0;client.max_tokens=100
+    client.cost_per_1m_input_tokens=client.cost_per_1m_output_tokens=0.0
+    fake_redis.should_fail=True
+    with patch.object(BudgetGuard,"check_and_reserve",AsyncMock(return_value=100)), \
+         patch.object(BudgetGuard,"reconcile_success",new_callable=AsyncMock) as reconcile, \
+         patch.object(BudgetGuard,"release_reservation",new_callable=AsyncMock) as release, \
+         patch("app.ai.telemetry.get_redis",return_value=fake_redis):
+        assert await client.generate_structured("Synthetic","Synthetic",GroundedRateOutlookOutput,"outage")==output
+    provider.assert_awaited_once();reconcile.assert_awaited_once_with(100,0.0);release.assert_not_awaited()
