@@ -71,3 +71,6 @@ scfi_debug.png
 
 # Local development scratch scripts
 drop_all.py
+
+# Deployment files
+deploy/
