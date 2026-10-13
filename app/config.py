@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
     EXCHANGE_RATE_API_KEY: str = ""
     API_KEY: Optional[str] = None
+    ENV: str = "development"
 
     # AI Prompt Versions
     AI_CARRIER_SUMMARIZER_PROMPT_VERSION: str = "v1"

@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Dict, Set
+from typing import Dict, Set, Optional, Any
 from fastapi import WebSocket, WebSocketDisconnect
 # pyrefly: ignore [missing-import]
 import structlog
@@ -70,49 +70,91 @@ class ConnectionManager:
             delivered += await self.broadcast_to_user(user_id, message)
         return delivered
 
-    async def verify_auth(self, websocket: WebSocket) -> bool:
+    async def verify_auth(self, websocket: WebSocket, requested_user_id: Optional[str] = None, db_session=None) -> bool:
         """
-        Authenticate WebSocket connection via:
-        1. X-API-Key header
-        2. api_key or token query parameters (for browser WebSocket clients)
-        3. Master key comparison or valid active key
+        Authenticate WebSocket connection and enforce tenant isolation:
+        1. X-API-Key header or api_key / key query param
+        2. Bearer JWT access token from Authorization header or token query param
+        3. Enforce that the authenticated user owns requested_user_id
+        Fails closed on missing credentials or mismatched user ownership.
         """
+        import uuid
+        from app.config import settings
+
         api_key = (
             websocket.headers.get("X-API-Key")
             or websocket.headers.get("x-api-key")
             or websocket.query_params.get("api_key")
-            or websocket.query_params.get("token")
             or websocket.query_params.get("key")
         )
+        bearer_token = (
+            websocket.headers.get("Authorization")
+            or websocket.query_params.get("token")
+        )
+        if bearer_token and bearer_token.startswith("Bearer "):
+            bearer_token = bearer_token[7:].strip()
 
-        # Allow matching master API key configured in settings
+        # 1. Verify JWT access token if provided (preferred for browser WebSocket clients)
+        if bearer_token:
+            try:
+                from app.auth.security import decode_access_token
+                payload = decode_access_token(bearer_token)
+                if payload and payload.get("sub"):
+                    token_user_id = str(payload.get("sub"))
+                    if requested_user_id and token_user_id != str(requested_user_id):
+                        logger.warning("websocket_jwt_user_mismatch", token_user=token_user_id, requested_user=requested_user_id)
+                        return False
+                    return True
+            except Exception as exc:
+                logger.warning("websocket_jwt_auth_failed", error=str(exc))
+
+        # 2. Allow master API key only in non-production environments for automated integration testing
         if settings.API_KEY and api_key == settings.API_KEY:
-            return True
+            if getattr(settings, "ENV", "development") != "production":
+                return True
+            logger.warning("websocket_master_key_bypass_rejected_in_production")
+            return False
 
-        # If an API key was supplied, also verify against hashed keys in database if needed
+        # 3. Verify API key against database and check user ownership
         if api_key:
             from app.auth.security import hash_api_key
-            from app.database import AsyncSessionLocal
             from app.models.api_key import ApiKey
             from sqlalchemy import select
 
+            key_hash = hash_api_key(api_key)
+
+            async def _check_api_key(session):
+                stmt = select(ApiKey).where(ApiKey.key_hash == key_hash)
+                record = (await session.execute(stmt)).scalar_one_or_none()
+                if not record:
+                    return False
+                is_valid = getattr(record, "is_active", True) is True and getattr(record, "revoked_at", None) is None
+                if not is_valid:
+                    logger.warning("websocket_auth_key_inactive", key_prefix=getattr(record, "key_prefix", None))
+                    return False
+                if requested_user_id:
+                    try:
+                        req_uuid = uuid.UUID(str(requested_user_id))
+                        if record.user_id != req_uuid:
+                            logger.warning("websocket_auth_user_mismatch", key_user=str(record.user_id), requested_user=str(requested_user_id))
+                            return False
+                    except ValueError:
+                        if str(record.user_id) != str(requested_user_id):
+                            logger.warning("websocket_auth_user_mismatch", key_user=str(record.user_id), requested_user=str(requested_user_id))
+                            return False
+                return True
+
             try:
-                key_hash = hash_api_key(api_key)
-                async with AsyncSessionLocal() as session:
-                    stmt = select(ApiKey).where(
-                        ApiKey.key_hash == key_hash,
-                        ApiKey.revoked_at.is_(None),
-                    )
-                    record = (await session.execute(stmt)).scalar_one_or_none()
-                    if record:
-                        return True
+                if db_session:
+                    return await _check_api_key(db_session)
+                else:
+                    from app.database import AsyncSessionLocal
+                    async with AsyncSessionLocal() as session:
+                        return await _check_api_key(session)
             except Exception as exc:
-                logger.warning("websocket_auth_db_check_failed", error=str(exc))
+                logger.warning("websocket_db_auth_check_failed", error=str(exc))
 
-        # In local/testing mode without configured master key, permit connection
-        if not settings.API_KEY:
-            return True
-
+        # Fail closed: unauthenticated connections are strictly rejected
         return False
 
     async def subscribe_and_relay(self, user_id: str, websocket: WebSocket) -> None:

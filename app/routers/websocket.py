@@ -26,9 +26,10 @@ async def alerts_websocket(websocket: WebSocket, user_id: str):
     """
     WebSocket endpoint for real-time freight alerts.
     Subscribes the client to user-specific alerts and network-wide broadcast alerts.
-    Supports authentication via 'X-API-Key' header or query parameter '?api_key=...'.
+    Supports authentication via 'X-API-Key' header or query parameter '?api_key=...'
+    or Bearer token via '?token=...'. Enforces exact user ownership to prevent cross-tenant exposure.
     """
-    is_authenticated = await manager.verify_auth(websocket)
+    is_authenticated = await manager.verify_auth(websocket, requested_user_id=user_id)
     if not is_authenticated:
         logger.warning("websocket_auth_failed", user_id=user_id)
         await websocket.close(code=1008)  # 1008 = Policy Violation / Unauthorized
@@ -47,10 +48,25 @@ async def alerts_websocket(websocket: WebSocket, user_id: str):
 
 
 @router.post("/ws/test-alert", status_code=status.HTTP_200_OK)
-async def trigger_test_alert(req: TestAlertRequest):
+async def trigger_test_alert(
+    req: TestAlertRequest,
+    current_user: Optional[object] = None,
+):
     """
-    Trigger a test alert over WebSocket for developer testing and verification.
+    Trigger a test alert over WebSocket for testing and verification.
+    In production environments, restricted to authenticated administrative users.
     """
+    from app.config import settings
+
+    if getattr(settings, "ENV", "development") == "production":
+        from app.auth.security import get_current_user_from_token
+        # In production, enforce admin check
+        if not current_user or not getattr(current_user, "is_admin", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Test alert endpoint is restricted to administrators in production",
+            )
+
     payload = {
         "id": "test-" + req.alert_type,
         "user_id": req.user_id,

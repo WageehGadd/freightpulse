@@ -5,19 +5,35 @@ from fastapi.responses import JSONResponse
 
 
 from app.routers import (
-    ai_admin,
     alerts,
     auth,
     bunker,
     carriers,
     dashboard,
+    evaluations,
     exchange_rate,
     health,
     ports,
     rates,
     route_brief,
+    route_intelligence,
+    scenarios,
     websocket,
 )
+
+try:
+    from app.routers import ai_admin
+except ImportError:
+    try:
+        from app.routers import ai as ai_admin
+    except ImportError:
+        ai_admin = None
+
+try:
+    from app.routers import forecasts, decisions
+    has_forecast_routers = True
+except ImportError:
+    has_forecast_routers = False
 
 from app.config import settings
 
@@ -71,6 +87,16 @@ app.include_router(exchange_rate.router, prefix="/api/v1", tags=["Exchange Rate"
 app.include_router(bunker.router, prefix="/api/v1", tags=["Bunker"])
 app.include_router(route_brief.router, prefix="/api/v1", tags=["Route Briefs"])
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
-app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
+if ai_admin:
+    app.include_router(ai_admin.router, prefix="/api/v1", tags=["AI Management"])
 app.include_router(websocket.router, prefix="/api/v1", tags=["WebSockets"])
+# Root path mount retained for backward compatibility with existing clients/tests
 app.include_router(websocket.router, tags=["WebSockets"])
+app.include_router(scenarios.router, prefix="/api/v1", tags=["Scenarios"])
+app.include_router(route_intelligence.router, prefix="/api/v1", tags=["Route Intelligence"])
+app.include_router(evaluations.router, prefix="/api/v1", tags=["Forecast Evaluations"])
+
+if has_forecast_routers:
+    app.include_router(forecasts.router, prefix="/api/v1", tags=["Forecasts"])
+    app.include_router(decisions.router, prefix="/api/v1", tags=["Decisions"])
+
