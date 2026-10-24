@@ -4,7 +4,8 @@ from app.models.carrier_advisory import CarrierAdvisory
 from app.models.exchange_rate import ExchangeRate
 from app.models.freight_rate import FreightRate
 from app.models.port_congestion import PortCongestion
-from app.models.rate_alert import RateAlert, RateAlertRule
+from app.models.rate_alert import (RateAlert, RateAlertRule, PredictiveAlertSubscription,
+                                   PredictiveAlertCheckpoint, PredictiveAlertEvent)
 from app.models.rate_forecast import RateForecast
 from app.models.forecast_evaluation import EvaluationRun, EvaluationObservation, EvaluationPoint
 from app.models.rate_trend import RateTrend
@@ -22,6 +23,9 @@ __all__ = [
     "PortCongestion",
     "RateAlert",
     "RateAlertRule",
+    "PredictiveAlertSubscription",
+    "PredictiveAlertCheckpoint",
+    "PredictiveAlertEvent",
     "RateForecast",
     "EvaluationRun",
     "EvaluationObservation",

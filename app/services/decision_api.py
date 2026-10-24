@@ -13,6 +13,7 @@ from app.services.forecast_persistence import ForecastPersistenceService
 from app.services.forecast_state import ForecastStateCollector, snapshot_forecast
 from app.services.decision_engine import evaluate_decision
 from app.services.reliability import assess_evidence, EvidenceInputError
+from dataclasses import dataclass
 
 
 def utc_now():
@@ -87,11 +88,19 @@ def _to_public_response(decision, evidence):
     )
 
 
+@dataclass(frozen=True)
+class DecisionContext:
+    """Internal factual composition shared by read-only AI adapters."""
+    input: DecisionInput
+    decision: object
+    evidence: object
+
+
 class DecisionAPIService:
     def __init__(self, session):
         self.session = session
 
-    async def latest(self, source, trade_lane, container_type):
+    async def context(self, source, trade_lane, container_type):
         series = SeriesIdentity(source=source, trade_lane=trade_lane, container_type=container_type)
         rows = await ForecastPersistenceService(self.session).get_latest_forecasts(
             source=source, trade_lane=trade_lane, container_type=container_type)
@@ -118,4 +127,8 @@ class DecisionAPIService:
             if decision.decision == Decision.UNAVAILABLE:
                 raise EvidenceInputError('Persisted forecast unexpectedly produced UNAVAILABLE')
             evidence = assess_evidence(decision)
-            return to_public_response(decision, evidence)
+            return DecisionContext(DecisionInput(forecast=snapshot, current_state=state), decision, evidence)
+
+    async def latest(self, source, trade_lane, container_type):
+        context = await self.context(source, trade_lane, container_type)
+        return None if context is None else to_public_response(context.decision, context.evidence)

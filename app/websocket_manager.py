@@ -6,7 +6,6 @@ from fastapi import WebSocket, WebSocketDisconnect
 # pyrefly: ignore [missing-import]
 import structlog
 
-from app.config import settings
 from app.redis_client import get_redis
 
 logger = structlog.get_logger()
@@ -74,20 +73,11 @@ class ConnectionManager:
         """
         Authenticate WebSocket connection via:
         1. X-API-Key header
-        2. api_key or token query parameters (for browser WebSocket clients)
-        3. Master key comparison or valid active key belonging to requested_user_id
+        API keys are accepted only through X-API-Key.  The configured service
+        key is never a user impersonation credential, and query strings are not
+        accepted because they are routinely persisted by proxies and logs.
         """
-        api_key = (
-            websocket.headers.get("X-API-Key")
-            or websocket.headers.get("x-api-key")
-            or websocket.query_params.get("api_key")
-            or websocket.query_params.get("token")
-            or websocket.query_params.get("key")
-        )
-
-        # Allow matching master API key configured in settings
-        if settings.API_KEY and api_key == settings.API_KEY:
-            return True
+        api_key = websocket.headers.get("X-API-Key") or websocket.headers.get("x-api-key")
 
         # If an API key was supplied, also verify against hashed keys in database if needed
         if api_key:
@@ -120,10 +110,6 @@ class ConnectionManager:
                     return True
             except Exception as exc:
                 logger.warning("websocket_auth_db_check_failed", error=str(exc))
-
-        # In local/testing mode without configured master key, permit connection
-        if not settings.API_KEY:
-            return True
 
         return False
 

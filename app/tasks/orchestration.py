@@ -9,6 +9,8 @@ from app.redis_client import get_redis
 from app.tasks.rate_ingestion import ingest_freight_rates
 from app.tasks.trend_computation import compute_rate_trends
 from app.tasks.alert_evaluation import evaluate_rate_alerts
+from app.tasks.forecast_generation import generate_forecasts
+from app.tasks.predictive_alert_evaluation import evaluate_predictive_alerts
 from app.tasks.rate_outlook_orchestrator import schedule_rate_outlook
 
 logger = structlog.get_logger()
@@ -38,6 +40,9 @@ async def _trigger_daily_pipeline() -> dict:
     pipeline = chain(
         ingest_freight_rates.si(),
         compute_rate_trends.si(computation_date=target_date),
+        # T06 must persist the exact-series forecast before T07 may create an outlook.
+        generate_forecasts.si(),
+        evaluate_predictive_alerts.si(),
         evaluate_rate_alerts.si(evaluation_date=target_date),
         schedule_rate_outlook.si(target_date=target_date)
     )
